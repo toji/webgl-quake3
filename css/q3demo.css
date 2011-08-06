@@ -1,0 +1,92 @@
+body {
+	font: 0.8em Verdana,sans-serif;
+	background-image: url('../images/Quake3LogoBG.png');
+	background-position: center top;
+	background-repeat: no-repeat;
+	background-color: black;
+	color: white;
+}
+
+a {
+	color: #DDEEFF;
+	text-decoration: none;
+}
+
+a:hover {
+	color: #FFFFFF;
+	text-decoration: underline;
+}
+
+h2 {
+	font-size: 1.1em;
+	text-align: center;
+}
+
+#fps-counter {
+	position: absolute;
+	top: 5px;
+	left: 5px;
+	z-index: 2;
+	color: white;
+	border: 1px solid #6699FF;
+	background-color: #3355FF;
+	opacity: 0.5;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+	padding: 5px;
+	min-width: 75px;
+	text-align: center;
+}
+
+#viewport-frame, #webgl-error {
+	position: relative;
+	margin: auto;
+	width: 854px;
+	height: 480px;
+}
+
+canvas {
+	cursor: move;
+	text-align: center;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+	background-color: black;
+	display: none;
+}
+
+#viewport-info {
+	position: relative;
+	margin: auto;
+	width: 854px;
+}
+
+#viewport-info h3 {
+	margin: 2px;
+}
+
+#viewport-info ul {
+	list-style: none;
+	padding-right: 20px;
+	padding-left: 20px;
+}
+
+#controls, #config {
+	float: left;
+	width: 411px;
+	height: 120px;
+	margin: 5px;
+	margin-top: 10px;
+	padding: 3px;
+	background-image: url('../images/clang_floor2.png');
+	background-color: #3B3632;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+}
+
+#config {
+	text-align: right;
+}
+
+#shaderSelect {
+	width: 220px;
+}
