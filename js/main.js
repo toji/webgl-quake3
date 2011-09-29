@@ -13,16 +13,16 @@
  * including commercial applications, and to alter it and redistribute it
  * freely, subject to the following restrictions:
  *
- *    1. The origin of this software must not be misrepresented; you must not
- *    claim that you wrote the original software. If you use this software
- *    in a product, an acknowledgment in the product documentation would be
- *    appreciated but is not required.
+ *	  1. The origin of this software must not be misrepresented; you must not
+ *	  claim that you wrote the original software. If you use this software
+ *	  in a product, an acknowledgment in the product documentation would be
+ *	  appreciated but is not required.
  *
- *    2. Altered source versions must be plainly marked as such, and must not
- *    be misrepresented as being the original software.
+ *	  2. Altered source versions must be plainly marked as such, and must not
+ *	  be misrepresented as being the original software.
  *
- *    3. This notice may not be removed or altered from any source
- *    distribution.
+ *	  3. This notice may not be removed or altered from any source
+ *	  distribution.
  */
 
 // The bits that need to change to load different maps are right here!
@@ -58,7 +58,7 @@ var startTime = new Date().getTime();
 
 // Set up basic GL State up front
 function initGL(gl, canvas) {
-	gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+	gl.viewport(0, 0, canvas.width, canvas.height);
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.clearDepth(1.0);
 	
@@ -67,7 +67,7 @@ function initGL(gl, canvas) {
 	gl.enable(gl.CULL_FACE);
 	
 	projectionMat = mat4.create();
-	mat4.perspective(45.0, gl.viewportWidth/gl.viewportHeight, 1.0, 4096.0, projectionMat);
+	mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
 	modelViewMat = mat4.create();
 	
 	initMap(gl);
@@ -151,7 +151,7 @@ function onFrame(gl, event) {
 		lastMove += 16;
 	}
 	
-    drawFrame(gl);
+	drawFrame(gl);
 }
 
 // Draw a single frame
@@ -214,20 +214,20 @@ function initEvents() {
 	var lastMoveX = 0;
 	var lastMoveY = 0;
 	
-	$(window).keydown(function(event) {
+	$(document).keydown(function(event) {
 		if(event.keyCode == 32 && !pressed[32]) {
 			playerMover.jump();
 		}
 		pressed[event.keyCode] = true;
 	});
 	
-	$(window).keypress(function(event) {
+	$(document).keypress(function(event) {
 		if(event.keyCode == 'R'.charCodeAt(0) || event.keyCode == 'r'.charCodeAt(0)) {
 			respawnPlayer(-1);
 		}
 	});
 	
-	$(window).keyup(function(event) {
+	$(document).keyup(function(event) {
 		pressed[event.keyCode] = false;
 	});
 	
@@ -264,27 +264,27 @@ function initEvents() {
 	}
 	
 	function startMove(x, y) {
-        lastMoveX = x;
-        lastMoveY = y;
-    }
+		lastMoveX = x;
+		lastMoveY = y;
+	}
 	
 	function moveUpdate(x, y, frameTime) {
-    	var xDelta = x - lastMoveX;
+		var xDelta = x - lastMoveX;
 		var yDelta = y - lastMoveY;
 		lastMoveX = x;
 		lastMoveY = y;
 
-    	var dir = [xDelta, yDelta * -1, 0];
+		var dir = [xDelta, yDelta * -1, 0];
 
-    	mat4.identity(cameraMat);
+		mat4.identity(cameraMat);
 		mat4.rotateZ(cameraMat, zAngle);
 		mat4.inverse(cameraMat);
 
 		mat4.multiplyVec3(cameraMat, dir);
 
-    	// Send desired movement direction to the player mover for collision detection against the map
-    	playerMover.move(dir, frameTime*2);
-    }
+		// Send desired movement direction to the player mover for collision detection against the map
+		playerMover.move(dir, frameTime*2);
+	}
 	
 	// Mouse handling code
 	// When the mouse is pressed it rotates the players view
@@ -302,41 +302,41 @@ function initEvents() {
 	
 	// Touch handling code
 	$('#viewport').bind('touchstart', function(event) {
-	    var touches = event.originalEvent.touches;
-	    switch(touches.length) {
-	        case 1: // Single finger looks around
-	            startLook(touches[0].pageX, touches[0].pageY);
-                break;
-	        case 2: // Two fingers moves
-	            startMove(touches[0].pageX, touches[0].pageY);
-	            break;
-	        case 3: // Three finger tap jumps
-                playerMover.jump();
-	            break;
-	        default:
-	            return;
-        }
-        event.stopPropagation();
-        event.preventDefault();
+		var touches = event.originalEvent.touches;
+		switch(touches.length) {
+			case 1: // Single finger looks around
+				startLook(touches[0].pageX, touches[0].pageY);
+				break;
+			case 2: // Two fingers moves
+				startMove(touches[0].pageX, touches[0].pageY);
+				break;
+			case 3: // Three finger tap jumps
+				playerMover.jump();
+				break;
+			default:
+				return;
+		}
+		event.stopPropagation();
+		event.preventDefault();
 	});
 	$('#viewport').bind('touchend', function(event) {
 		endLook();
 		return false;
 	});
 	$('#viewport').bind('touchmove', function(event) {
-	    var touches = event.originalEvent.touches;
-	    switch(touches.length) {
-	        case 1:
-	            moveLook(touches[0].pageX, touches[0].pageY);
-                break;
-	        case 2:
-	            moveUpdate(touches[0].pageX, touches[0].pageY, 16);
-                break;
-	        default:
-	            return;
-        }
-        event.stopPropagation();
-        event.preventDefault();
+		var touches = event.originalEvent.touches;
+		switch(touches.length) {
+			case 1:
+				moveLook(touches[0].pageX, touches[0].pageY);
+				break;
+			case 2:
+				moveUpdate(touches[0].pageX, touches[0].pageY, 16);
+				break;
+			default:
+				return;
+		}
+		event.stopPropagation();
+		event.preventDefault();
 	});
 }
 
@@ -355,12 +355,30 @@ function getAvailableContext(canvas, contextList) {
 	return null;
 }
 
+var GL_WINDOW_WIDTH = 854;
+var GL_WINDOW_HEIGHT = 480;
+
+
+
 function main() {
 	var canvas = $('#viewport').get(0);
 	
 	// Set the canvas size
-	canvas.width = 854;
-	canvas.height = 480;
+	canvas.width = GL_WINDOW_WIDTH;
+	canvas.height = GL_WINDOW_HEIGHT;
+	
+	// Handle fullscreen transition
+	canvas.onwebkitfullscreenchange = function() {
+		if(document.webkitIsFullScreen) {
+			canvas.width = screen.width;
+			canvas.height = screen.height;
+		} else {
+			canvas.width = GL_WINDOW_WIDTH;
+			canvas.height = GL_WINDOW_HEIGHT;
+		}
+		gl.viewport(0, 0, canvas.width, canvas.height);
+		mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
+	};
 	
 	// Get the GL Context (try 'webgl' first, then fallback)
 	var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
@@ -371,16 +389,12 @@ function main() {
 	} else {
 		$('#viewport-info').show();
 		initEvents();
+		initGL(gl, canvas);
 		
-		gl.viewportWidth = canvas.width;
-		gl.viewportHeight = canvas.height;
-		
-		initGL(gl);
-        
-        // use requestAnimationFrame to do animation if available
+		// use requestAnimationFrame to do animation if available
 		$(canvas).requestAnimation(function(event) {
-		    if(!map || !playerMover) { return; }
-		    onFrame(gl, event); 
+			if(!map || !playerMover) { return; }
+			onFrame(gl, event); 
 		});
 	}
 	
@@ -395,6 +409,12 @@ function main() {
 	$('#playMusic').change(function() {
 		if(map) {
 			map.playMusic($('#playMusic:checked').length > 0);
+		}
+	});
+	
+	$('#fullscreenBtn').click(function() {
+		if(canvas.webkitRequestFullScreen) {
+			canvas.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
 		}
 	});
 }
