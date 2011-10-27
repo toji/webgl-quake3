@@ -54,11 +54,6 @@ canvas {
 	display: none;
 }
 
-canvas:-webkit-full-screen {
-    width: 100%;
-    height: 100%;
-}
-
 #viewport-info {
 	position: relative;
 	margin: auto;
@@ -98,4 +93,14 @@ canvas:-webkit-full-screen {
 
 #fullscreenBtn {
     cursor: pointer;
+}
+
+canvas:-moz-full-screen {
+    width: 100%;
+    height: 100%;
+}
+
+canvas:-webkit-full-screen {
+    width: 100%;
+    height: 100%;
 }

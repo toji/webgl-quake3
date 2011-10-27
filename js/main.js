@@ -39,7 +39,7 @@ var mapShaders = [
 	'scripts/liquid.shader', 'scripts/menu.shader', 'scripts/models.shader',
 	'scripts/organics.shader', 'scripts/sfx.shader', 'scripts/shrine.shader',
 	'scripts/skin.shader', 'scripts/sky.shader', 'scripts/test.shader'
-]
+];
 
 // For my demo, I compiled only the shaders the map used into a single file for performance reasons
 //var mapShaders = ['scripts/web_demo.shader'];
@@ -358,27 +358,12 @@ function getAvailableContext(canvas, contextList) {
 var GL_WINDOW_WIDTH = 854;
 var GL_WINDOW_HEIGHT = 480;
 
-
-
 function main() {
 	var canvas = $('#viewport').get(0);
 	
 	// Set the canvas size
 	canvas.width = GL_WINDOW_WIDTH;
 	canvas.height = GL_WINDOW_HEIGHT;
-	
-	// Handle fullscreen transition
-	canvas.onwebkitfullscreenchange = function() {
-		if(document.webkitIsFullScreen) {
-			canvas.width = screen.width;
-			canvas.height = screen.height;
-		} else {
-			canvas.width = GL_WINDOW_WIDTH;
-			canvas.height = GL_WINDOW_HEIGHT;
-		}
-		gl.viewport(0, 0, canvas.width, canvas.height);
-		mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
-	};
 	
 	// Get the GL Context (try 'webgl' first, then fallback)
 	var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
@@ -397,7 +382,7 @@ function main() {
 			onFrame(gl, event); 
 		});
 	}
-	
+
 	$('#showFPS').change(function() {
 		if($('#showFPS:checked').length) {
 			$('#fps-counter').show();
@@ -412,9 +397,27 @@ function main() {
 		}
 	});
 	
+	// Handle fullscreen transition
+	function fullscreenchange() {
+		if(document.webkitIsFullScreen || document.mozFullScreen) {
+			canvas.width = screen.width;
+			canvas.height = screen.height;
+		} else {
+			canvas.width = GL_WINDOW_WIDTH;
+			canvas.height = GL_WINDOW_HEIGHT;
+		}
+		gl.viewport(0, 0, canvas.width, canvas.height);
+		mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
+	};
+	
+	canvas.addEventListener("webkitfullscreenchange", fullscreenchange, false);
+	canvas.addEventListener("mozfullscreenchange", fullscreenchange, false);
+	
 	$('#fullscreenBtn').click(function() {
 		if(canvas.webkitRequestFullScreen) {
 			canvas.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+		} else if(canvas.mozRequestFullScreen) {
+			canvas.mozRequestFullScreen();
 		}
 	});
 }
