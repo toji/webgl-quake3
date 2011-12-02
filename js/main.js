@@ -206,6 +206,16 @@ function updateInput(frameTime) {
 	playerMover.move(dir, frameTime);
 }
 
+function lockMouse() {
+    if(navigator.pointer && !navigator.pointer.isLocked()) {
+        navigator.pointer.lock(viewport, function() {  
+            console.log("I can haz mouselock!");
+        }, function() {  
+            console.log("Epic mouselock fail!");
+        });
+    }
+}
+
 // Set up event handling
 function initEvents() {
 	var movingModel = false;
@@ -213,6 +223,9 @@ function initEvents() {
 	var lastY = 0;
 	var lastMoveX = 0;
 	var lastMoveY = 0;
+	var viewport = document.getElementById("viewport");
+	
+	navigator.pointer = navigator.pointer || navigator.webkitPointer;
 	
 	$(document).keydown(function(event) {
 		if(event.keyCode == 32 && !pressed[32]) {
@@ -249,18 +262,22 @@ function initEvents() {
 		lastY = y;
 		
 		if (movingModel) {
-			zAngle += xDelta*0.0025;
-			while (zAngle < 0)
-				zAngle += Math.PI*2;
-			while (zAngle >= Math.PI*2)
-				zAngle -= Math.PI*2;
-				
-			xAngle += yDelta*0.0025;
-			while (xAngle < -Math.PI*0.5)
-				xAngle = -Math.PI*0.5;
-			while (xAngle > Math.PI*0.5)
-				xAngle = Math.PI*0.5;
+			moveLookLocked(xDelta, yDelta);
 		}
+	}
+	
+	function moveLookLocked(xDelta, yDelta) {
+		zAngle += xDelta*0.0025;
+		while (zAngle < 0)
+			zAngle += Math.PI*2;
+		while (zAngle >= Math.PI*2)
+			zAngle -= Math.PI*2;
+			
+		xAngle += yDelta*0.0025;
+		while (xAngle < -Math.PI*0.5)
+			xAngle = -Math.PI*0.5;
+		while (xAngle > Math.PI*0.5)
+			xAngle = Math.PI*0.5;
 	}
 	
 	function startMove(x, y) {
@@ -286,6 +303,10 @@ function initEvents() {
 		playerMover.move(dir, frameTime*2);
 	}
 	
+	$('#viewport').click(function(event) {
+		lockMouse();
+	});
+	
 	// Mouse handling code
 	// When the mouse is pressed it rotates the players view
 	$('#viewport').mousedown(function(event) {
@@ -297,7 +318,11 @@ function initEvents() {
 		endLook();
 	});
 	$('#viewport').mousemove(function(event) {
-		moveLook(event.pageX, event.pageY);
+	    if(navigator.pointer && navigator.pointer.isLocked()) {
+	        moveLookLocked(event.movementX, event.movementY);
+        } else {
+		    moveLook(event.pageX, event.pageY);
+	    }
 	});
 	
 	// Touch handling code
@@ -402,6 +427,7 @@ function main() {
 		if(document.webkitIsFullScreen || document.mozFullScreen) {
 			canvas.width = screen.width;
 			canvas.height = screen.height;
+			lockMouse(); // Attempt to lock the mouse automatically
 		} else {
 			canvas.width = GL_WINDOW_WIDTH;
 			canvas.height = GL_WINDOW_HEIGHT;
