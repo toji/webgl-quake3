@@ -56,6 +56,18 @@ var cameraPosition = [0, 0, 0];
 
 var startTime = new Date().getTime();
 
+function getQueryVariable(variable) {
+    var query = window.location.search.substring(1);
+    var vars = query.split("&");
+    for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split("=");
+        if (pair[0] == variable) {
+            return unescape(pair[1]);
+        }
+    }
+    return null;
+}
+
 // Set up basic GL State up front
 function initGL(gl, canvas) {
 	gl.viewport(0, 0, canvas.width, canvas.height);
@@ -76,13 +88,18 @@ function initGL(gl, canvas) {
 // Load the map
 function initMap(gl) {
 	$('#mapTitle').html(mapName.toUpperCase());
+	
+	var tesselation = getQueryVariable("tesselate");
+	if(tesselation) {
+	    tesselation = parseInt(tesselation, 10);
+    }
 
 	map = new q3bsp(gl);
 	map.onentitiesloaded = initMapEntities;
 	map.onbsp = initPlayerMover;
 	map.onsurfaces = initSurfaces;
 	map.loadShaders(mapShaders);
-	map.load('maps/' + mapName +'.bsp');
+	map.load('maps/' + mapName +'.bsp', tesselation);
 }
 
 // Process entities loaded from the map

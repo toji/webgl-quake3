@@ -32,7 +32,7 @@ importScripts('./common/glMatrix-min.js');
 onmessage = function(msg) {  
 	switch(msg.data.type) {
 		case 'load':
-			q3bsp.load(msg.data.url);
+			q3bsp.load(msg.data.url, msg.data.tesselationLevel);
 			break;
 		case 'loadShaders':
 			q3shader.loadList(msg.data.sources);
@@ -57,12 +57,12 @@ var shaders; // This needs to be kept here for collision detection (indicates no
 
 q3bsp = {};
 
-q3bsp.load = function(url) {	
+q3bsp.load = function(url, tesselationLevel) {	
 	var request = new XMLHttpRequest();
 	
 	request.onreadystatechange = function () {
 		if (request.readyState == 4 && request.status == 200) {
-			q3bsp.parse( new BinaryFile(request.responseText));
+			q3bsp.parse(new BinaryFile(request.responseText), tesselationLevel);
 		}
 	};
 	
@@ -73,7 +73,12 @@ q3bsp.load = function(url) {
 };
 
 // Parses the BSP file
-q3bsp.parse = function(src) {
+q3bsp.parse = function(src, tesselationLevel) {
+    postMessage({
+		type: 'status',
+		message: 'Map downloaded, parsing level geometry...'
+	});
+    
 	var header = q3bsp.readHeader(src);
 	
 	if(header.tag != 'IBSP' && header.version != 46) { return; } // Check for appropriate format
@@ -88,7 +93,12 @@ q3bsp.parse = function(src) {
 	var meshVerts = q3bsp.readMeshVerts(header.lumps[11], src);
 	faces = q3bsp.readFaces(header.lumps[13], src);
 	
-	q3bsp.compileMap(verts, faces, meshVerts, lightmaps, shaders);
+	q3bsp.compileMap(verts, faces, meshVerts, lightmaps, shaders, tesselationLevel);
+	
+	postMessage({
+		type: 'status',
+		message: 'Geometry compiled, parsing collision tree...'
+	});
 	
 	// Load bsp components
 	planes = q3bsp.readPlanes(header.lumps[2], src);
@@ -529,26 +539,28 @@ q3bsp.colorToVec = function(color) {
 // Compile the map into a stream of WebGL-compatible data
 //
 
-q3bsp.compileMap = function(verts, faces, meshVerts, lightmaps, shaders) {
-	var tesselationLevel = 5;
+q3bsp.compileMap = function(verts, faces, meshVerts, lightmaps, shaders, tesselationLevel) {
+    postMessage({
+		type: 'status',
+		message: 'Map geometry parsed, compiling...'
+	});
 	
 	// Find associated shaders for all clusters
-	
 	
 	// Per-face operations
 	for(var i = 0; i < faces.length; ++i) {
 		var face = faces[i];
-		
+	
 		if(face.type==1 || face.type==2 || face.type==3) {
 			// Add face to the appropriate texture face list
 			var shader = shaders[face.shader];
 			shader.faces.push(face);
 			var lightmap = lightmaps[face.lightmap];
-			
+		
 			if(!lightmap) {
 				lightmap = lightmaps[0];
 			}
-			
+		
 			if(face.type==1 || face.type==3) {
 				shader.geomType = face.type;
 				// Transform lightmap coords to match position in combined texture
@@ -559,11 +571,15 @@ q3bsp.compileMap = function(verts, faces, meshVerts, lightmaps, shaders) {
 					vert.lmNewCoord[1] = (vert.lmCoord[1] * lightmap.yScale) + lightmap.y;
 				}
 			} else {
+			    postMessage({
+            		type: 'status',
+            		message: 'Tesselating face ' + i + " of " + faces.length
+            	});
 				// Build Bezier curve
 				q3bsp.tesselate(face, verts, meshVerts, tesselationLevel);
 				for(var j = 0; j < face.vertCount; ++j) {
 					var vert = verts[face.vertex + j];
-					
+				
 					vert.lmNewCoord[0] = (vert.lmCoord[0] * lightmap.xScale) + lightmap.x;
 					vert.lmNewCoord[1] = (vert.lmCoord[1] * lightmap.yScale) + lightmap.y;
 				}

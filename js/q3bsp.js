@@ -44,13 +44,15 @@ q3bsp = function(gl) {
 	
 	var map = this;
 	
+	this.showLoadStatus();
+	
 	// Spawn the web worker
 	this.worker = new Worker('js/q3bsp_worker.js');
 	this.worker.onmessage = function(msg) {
 		map.onMessage(msg);
 	};
 	this.worker.onerror = function(msg) {
-		throw 'Line: ' + msg.lineno + ', ' + event.message;
+		throw 'Line: ' + msg.lineno + ', ' + msg.message;
 	};
 	
 	// Map elements
@@ -119,19 +121,45 @@ q3bsp.prototype.onMessage = function(msg) {
 			if(this.onbsp) {
 				this.onbsp(this.bspTree);
 			}
+			this.clearLoadStatus();
 			break;
 		case 'visibility':
 			this.setVisibility(msg.data.visibleSurfaces);
 			break;
+	    case 'status':
+            this.onLoadStatus(msg.data.message);
+		    break;
 		default:
 			throw 'Unexpected message type: ' + msg.data.type;
 	};
 };
 
-q3bsp.prototype.load = function(url) {
+q3bsp.prototype.showLoadStatus = function() {
+    // Yeah, this shouldn't be hardcoded in here
+    var loading = document.getElementById('loading');
+    loading.style.display = 'block';
+};
+
+q3bsp.prototype.onLoadStatus = function(message) {
+    // Yeah, this shouldn't be hardcoded in here
+    var loading = document.getElementById('loading');
+    loading.innerHTML = message;
+};
+
+q3bsp.prototype.clearLoadStatus = function() {
+    // Yeah, this shouldn't be hardcoded in here
+    var loading = document.getElementById('loading');
+    loading.style.display = 'none';
+};
+
+q3bsp.prototype.load = function(url, tesselationLevel) {
+    if(!tesselationLevel) {
+        tesselationLevel = 5;
+    }
 	this.worker.postMessage({
 		type: 'load',
-		url: '../' + q3bsp_base_folder + '/' + url
+		url: '../' + q3bsp_base_folder + '/' + url,
+		tesselationLevel: tesselationLevel
 	});
 };
 
