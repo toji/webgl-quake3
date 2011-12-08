@@ -470,8 +470,8 @@ function main() {
 		mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
 	};
 	
-	canvas.addEventListener("webkitfullscreenchange", fullscreenchange, false);
-	canvas.addEventListener("mozfullscreenchange", fullscreenchange, false);
+	document.addEventListener("webkitfullscreenchange", fullscreenchange, false);
+	document.addEventListener("mozfullscreenchange", fullscreenchange, false);
 	
 	$('#fullscreenBtn').click(function() {
 		if(canvas.webkitRequestFullScreen) {
