@@ -29,7 +29,9 @@
 // ===========================================
 
 var mapName = 'q3tourney2';
-var mapShaders = [
+
+// If you're running from your own copy of Quake 3, you'll want to use these shaders
+/*var mapShaders = [
 	'scripts/base.shader', 'scripts/base_button.shader', 'scripts/base_floor.shader',
 	'scripts/base_light.shader', 'scripts/base_object.shader', 'scripts/base_support.shader',
 	'scripts/base_trim.shader', 'scripts/base_wall.shader', 'scripts/common.shader',
@@ -39,10 +41,10 @@ var mapShaders = [
 	'scripts/liquid.shader', 'scripts/menu.shader', 'scripts/models.shader',
 	'scripts/organics.shader', 'scripts/sfx.shader', 'scripts/shrine.shader',
 	'scripts/skin.shader', 'scripts/sky.shader', 'scripts/test.shader'
-];
+];*/
 
 // For my demo, I compiled only the shaders the map used into a single file for performance reasons
-//var mapShaders = ['scripts/web_demo.shader'];
+var mapShaders = ['scripts/web_demo.shader'];
 
 // ===========================================
 // Everything below here is common to all maps
@@ -223,12 +225,27 @@ function updateInput(frameTime) {
 	playerMover.move(dir, frameTime);
 }
 
+function pointerLocked() {
+    if(navigator.pointer) {
+        if(navigator.pointer.isLocked) {
+            return navigator.pointer.isLocked();
+        }
+        
+        // For compatibility with early Firefox build
+        if(navigator.pointer.islocked) {
+            return navigator.pointer.islocked();
+        }
+    }
+    return false;
+}
+
 function lockMouse() {
-    if(navigator.pointer && !navigator.pointer.isLocked()) {
+    var viewport = document.getElementById("viewport");
+    if(!pointerLocked()) {
         navigator.pointer.lock(viewport, function() {  
-            console.log("I can haz mouselock!");
+            //console.log("I can haz mouselock!");
         }, function() {  
-            console.log("Epic mouselock fail!");
+            //console.log("Epic mouselock fail!");
         });
     }
 }
@@ -243,7 +260,7 @@ function initEvents() {
 	var viewport = document.getElementById("viewport");
 	
 	navigator.pointer = navigator.pointer || navigator.webkitPointer;
-	
+    
 	$(document).keydown(function(event) {
 		if(event.keyCode == 32 && !pressed[32]) {
 			playerMover.jump();
@@ -335,8 +352,8 @@ function initEvents() {
 		endLook();
 	});
 	$('#viewport').mousemove(function(event) {
-	    if(navigator.pointer && navigator.pointer.isLocked()) {
-	        moveLookLocked(event.movementX, event.movementY);
+	    if(pointerLocked()) {
+	        moveLookLocked(event.originalEvent.movementX, event.originalEvent.movementY);
         } else {
 		    moveLook(event.pageX, event.pageY);
 	    }
