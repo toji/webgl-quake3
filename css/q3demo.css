@@ -36,6 +36,7 @@ h2 {
 	padding: 5px;
 	min-width: 75px;
 	text-align: center;
+	pointer-events: none;
 }
 
 #viewport-frame, #webgl-error {
@@ -117,4 +118,5 @@ canvas:-webkit-full-screen {
     background-color: black;
     text-align: center;
     vertical-align: middle;
+    pointer-events: none;
 }
