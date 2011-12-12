@@ -241,7 +241,7 @@ function pointerLocked() {
 
 function lockMouse() {
     var viewport = document.getElementById("viewport");
-    if(!pointerLocked()) {
+    if(navigator.pointer && !pointerLocked()) {
         navigator.pointer.lock(viewport, function() {  
             //console.log("I can haz mouselock!");
         }, function() {  
