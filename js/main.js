@@ -353,7 +353,9 @@ function initEvents() {
 	});
 	$('#viewport').mousemove(function(event) {
 	    if(pointerLocked()) {
-	        moveLookLocked(event.originalEvent.movementX, event.originalEvent.movementY);
+			var deltaX = event.originalEvent.movementX || event.originalEvent.webkitMovementX || 0;
+			var deltaY = event.originalEvent.movementY || event.originalEvent.webkitMovementY || 0;
+	        moveLookLocked(deltaX, deltaY);
         } else {
 		    moveLook(event.pageX, event.pageY);
 	    }
