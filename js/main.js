@@ -225,19 +225,25 @@ function updateInput(frameTime) {
 	playerMover.move(dir, frameTime);
 }
 
-function pointerLocked() {
+//====================
+// Mouselock shims
+navigator.pointer = navigator.pointer || navigator.webkitPointer;
+
+var pointerLocked = (function() {
     if(navigator.pointer) {
-        if(navigator.pointer.isLocked) {
-            return navigator.pointer.isLocked();
-        }
-        
-        // For compatibility with early Firefox build
-        if(navigator.pointer.islocked) {
-            return navigator.pointer.islocked();
+        if(typeof(navigator.pointer.isLocked) === "boolean") {
+            // This is what it should be, according to spec.
+            return function() { return navigator.pointer.isLocked; }
+        } else if(typeof(navigator.pointer.isLocked) === "function") {
+            // This is what it should be, according to spec.
+            return function() { return navigator.pointer.isLocked(); }
+        } else if(typeof(navigator.pointer.islocked) === "function") {
+            // For compatibility with early Firefox build
+            return function() { return navigator.pointer.islocked(); }
         }
     }
-    return false;
-}
+    return function() { return false }; // not supported, never locked
+})();
 
 function lockMouse() {
     var viewport = document.getElementById("viewport");
@@ -249,6 +255,8 @@ function lockMouse() {
         });
     }
 }
+// end Mouselock shims
+//====================
 
 // Set up event handling
 function initEvents() {
@@ -258,8 +266,6 @@ function initEvents() {
 	var lastMoveX = 0;
 	var lastMoveY = 0;
 	var viewport = document.getElementById("viewport");
-	
-	navigator.pointer = navigator.pointer || navigator.webkitPointer;
     
 	$(document).keydown(function(event) {
 		if(event.keyCode == 32 && !pressed[32]) {
