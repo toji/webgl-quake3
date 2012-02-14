@@ -154,6 +154,7 @@ q3glshader.buildDefault = function(gl, surface) {
 		isLightmap: false,
 		blendSrc: gl.ONE,
 		blendDest: gl.ZERO,
+        depthFunc: gl.LEQUAL,
 		depthWrite: true
 	};
 	
@@ -176,7 +177,7 @@ q3glshader.buildDefault = function(gl, surface) {
 q3glshader.translateDepthFunc = function(gl, depth) {
 	if(!depth) { return gl.LEQUAL; }
 	switch(depth.toLowerCase()) {
-		case 'gequal': return gl.LEQUAL;
+		case 'gequal': return gl.GEQUAL;
 		case 'lequal': return gl.LEQUAL;
 		case 'equal': return gl.EQUAL;
 		case 'greater': return gl.GREATER;
