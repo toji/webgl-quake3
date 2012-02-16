@@ -13,16 +13,16 @@
  * including commercial applications, and to alter it and redistribute it
  * freely, subject to the following restrictions:
  *
- *	  1. The origin of this software must not be misrepresented; you must not
- *	  claim that you wrote the original software. If you use this software
- *	  in a product, an acknowledgment in the product documentation would be
- *	  appreciated but is not required.
+ *    1. The origin of this software must not be misrepresented; you must not
+ *    claim that you wrote the original software. If you use this software
+ *    in a product, an acknowledgment in the product documentation would be
+ *    appreciated but is not required.
  *
- *	  2. Altered source versions must be plainly marked as such, and must not
- *	  be misrepresented as being the original software.
+ *    2. Altered source versions must be plainly marked as such, and must not
+ *    be misrepresented as being the original software.
  *
- *	  3. This notice may not be removed or altered from any source
- *	  distribution.
+ *    3. This notice may not be removed or altered from any source
+ *    distribution.
  */
 
 // The bits that need to change to load different maps are right here!
@@ -32,15 +32,15 @@ var mapName = 'q3tourney2';
 
 // If you're running from your own copy of Quake 3, you'll want to use these shaders
 /*var mapShaders = [
-	'scripts/base.shader', 'scripts/base_button.shader', 'scripts/base_floor.shader',
-	'scripts/base_light.shader', 'scripts/base_object.shader', 'scripts/base_support.shader',
-	'scripts/base_trim.shader', 'scripts/base_wall.shader', 'scripts/common.shader',
-	'scripts/ctf.shader', 'scripts/eerie.shader', 'scripts/gfx.shader',
-	'scripts/gothic_block.shader', 'scripts/gothic_floor.shader', 'scripts/gothic_light.shader',
-	'scripts/gothic_trim.shader', 'scripts/gothic_wall.shader', 'scripts/hell.shader',
-	'scripts/liquid.shader', 'scripts/menu.shader', 'scripts/models.shader',
-	'scripts/organics.shader', 'scripts/sfx.shader', 'scripts/shrine.shader',
-	'scripts/skin.shader', 'scripts/sky.shader', 'scripts/test.shader'
+    'scripts/base.shader', 'scripts/base_button.shader', 'scripts/base_floor.shader',
+    'scripts/base_light.shader', 'scripts/base_object.shader', 'scripts/base_support.shader',
+    'scripts/base_trim.shader', 'scripts/base_wall.shader', 'scripts/common.shader',
+    'scripts/ctf.shader', 'scripts/eerie.shader', 'scripts/gfx.shader',
+    'scripts/gothic_block.shader', 'scripts/gothic_floor.shader', 'scripts/gothic_light.shader',
+    'scripts/gothic_trim.shader', 'scripts/gothic_wall.shader', 'scripts/hell.shader',
+    'scripts/liquid.shader', 'scripts/menu.shader', 'scripts/models.shader',
+    'scripts/organics.shader', 'scripts/sfx.shader', 'scripts/shrine.shader',
+    'scripts/skin.shader', 'scripts/sky.shader', 'scripts/test.shader'
 ];*/
 
 // For my demo, I compiled only the shaders the map used into a single file for performance reasons
@@ -56,8 +56,6 @@ var zAngle = 3;
 var xAngle = 0;
 var cameraPosition = [0, 0, 0];
 
-var startTime = new Date().getTime();
-
 function getQueryVariable(variable) {
     var query = window.location.search.substring(1);
     var vars = query.split("&");
@@ -72,422 +70,448 @@ function getQueryVariable(variable) {
 
 // Set up basic GL State up front
 function initGL(gl, canvas) {
-	gl.viewport(0, 0, canvas.width, canvas.height);
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
-	gl.clearDepth(1.0);
-	
-	gl.enable(gl.DEPTH_TEST);
-	gl.enable(gl.BLEND);
-	gl.enable(gl.CULL_FACE);
-	
-	projectionMat = mat4.create();
-	mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
-	modelViewMat = mat4.create();
-	
-	initMap(gl);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clearDepth(1.0);
+    
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.enable(gl.CULL_FACE);
+    
+    projectionMat = mat4.create();
+    mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
+    modelViewMat = mat4.create();
+    
+    initMap(gl);
 }
 
 // Load the map
 function initMap(gl) {
-	$('#mapTitle').html(mapName.toUpperCase());
-	
-	var tesselation = getQueryVariable("tesselate");
-	if(tesselation) {
-	    tesselation = parseInt(tesselation, 10);
+    var titleEl = document.getElementById("mapTitle");
+    titleEl.innerHtml = mapName.toUpperCase();
+    
+    var tesselation = getQueryVariable("tesselate");
+    if(tesselation) {
+        tesselation = parseInt(tesselation, 10);
     }
 
-	map = new q3bsp(gl);
-	map.onentitiesloaded = initMapEntities;
-	map.onbsp = initPlayerMover;
-	map.onsurfaces = initSurfaces;
-	map.loadShaders(mapShaders);
-	map.load('maps/' + mapName +'.bsp', tesselation);
+    map = new q3bsp(gl);
+    map.onentitiesloaded = initMapEntities;
+    map.onbsp = initPlayerMover;
+    //map.onsurfaces = initSurfaces;
+    map.loadShaders(mapShaders);
+    map.load('maps/' + mapName +'.bsp', tesselation);
 }
 
 // Process entities loaded from the map
 function initMapEntities(entities) {
-	respawnPlayer(0);
+    respawnPlayer(0);
 }
 
 function initPlayerMover(bsp) {
-	playerMover = new q3movement(bsp);
-	respawnPlayer(0);
-	$('#viewport').show();
-}
-
-// Populates a combo box that allows users to select a shader which will be rendered as the
-// default shader (blue grid). Useful for identifying problematic surfaces.
-function initSurfaces(surfaces) {
-	var shaderSelect = $('#shaderSelect');
-	
-	shaderSelect.keyup(updateHighlight);
-	shaderSelect.change(updateHighlight);
-	
-	shaderSelect.html(''); // Clear current options
-	shaderSelect.append('<option>[None]</option>');
-	for(var i = 0; i < surfaces.length; ++i) {
-		shaderSelect.append('<option>' + surfaces[i].shaderName + '</option>');
-	}
-}
-function updateHighlight() {
-	$("#shaderSelect option:selected").each(function () {
-		map.highlightShader($(this).text());
-	});
+    playerMover = new q3movement(bsp);
+    respawnPlayer(0);
+    document.getElementById('viewport').style.display = 'block';
 }
 
 var lastIndex = 0;
 // "Respawns" the player at a specific spawn point. Passing -1 will move the player to the next spawn point.
 function respawnPlayer(index) {
-	if(map.entities && playerMover) {
-		if(index == -1) {
-			index = (lastIndex+1)% map.entities.info_player_deathmatch.length;
-		}
-		lastIndex = index;
-	
-		var spawnPoint = map.entities.info_player_deathmatch[index];
-		playerMover.position = [
-			spawnPoint.origin[0], 
-			spawnPoint.origin[1], 
-			spawnPoint.origin[2]+30 // Start a little ways above the floor
-		];
-		
-		playerMover.velocity = [0,0,0];
-		
-		zAngle = -spawnPoint.angle * (3.1415/180) + (3.1415*0.5); // Negative angle in radians + 90 degrees
-		xAngle = 0;
-	}
+    if(map.entities && playerMover) {
+        if(index == -1) {
+            index = (lastIndex+1)% map.entities.info_player_deathmatch.length;
+        }
+        lastIndex = index;
+    
+        var spawnPoint = map.entities.info_player_deathmatch[index];
+        playerMover.position = [
+            spawnPoint.origin[0], 
+            spawnPoint.origin[1], 
+            spawnPoint.origin[2]+30 // Start a little ways above the floor
+        ];
+        
+        playerMover.velocity = [0,0,0];
+        
+        zAngle = -spawnPoint.angle * (3.1415/180) + (3.1415*0.5); // Negative angle in radians + 90 degrees
+        xAngle = 0;
+    }
 }
 
 var lastMove = 0;
 
 function onFrame(gl, event) {
-	$('#fps').html(event.framesPerSecond);
-	
-	// Update player movement @ 60hz
-	// The while ensures that we update at a fixed rate even if the rendering bogs down
-	while(event.elapsed - lastMove >= 16) {
-		updateInput(16);
-		lastMove += 16;
-	}
-	
-	drawFrame(gl);
+    if(!map || !playerMover) { return; }
+    document.getElementById("fps").innerHTML = event.framesPerSecond;
+    
+    // Update player movement @ 60hz
+    // The while ensures that we update at a fixed rate even if the rendering bogs down
+    while(event.elapsed - lastMove >= 16) {
+        updateInput(16);
+        lastMove += 16;
+    }
+    
+    drawFrame(gl);
 }
 
 // Draw a single frame
 function drawFrame(gl) {
-	// Clear back buffer but not color buffer (we expect the entire scene to be overwritten)
-	gl.depthMask(true);
-	gl.clear(gl.DEPTH_BUFFER_BIT);
-	
-	if(!map || !playerMover) { return; }
-	
-	// Matrix setup
-	mat4.identity(modelViewMat);
-	mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
-	mat4.rotateZ(modelViewMat, zAngle);
-	mat4.translate(modelViewMat, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-30]);
-	
-	// Here's where all the magic happens...
-	map.draw(cameraPosition, modelViewMat, projectionMat);
+    // Clear back buffer but not color buffer (we expect the entire scene to be overwritten)
+    gl.depthMask(true);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    
+    if(!map || !playerMover) { return; }
+    
+    // Matrix setup
+    mat4.identity(modelViewMat);
+    mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
+    mat4.rotateZ(modelViewMat, zAngle);
+    mat4.translate(modelViewMat, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-30]);
+    
+    // Here's where all the magic happens...
+    map.draw(cameraPosition, modelViewMat, projectionMat);
 }
 
 var pressed = new Array(128);
 var cameraMat = mat4.create();
 
-function updateInput(frameTime) {
-	if(!playerMover) { return; }
-		
-	var dir = [0, 0, 0];
-	
-	// This is our first person movement code. It's not really pretty, but it works
-	if(pressed['W'.charCodeAt(0)]) {
-		dir[1] += 1;
-	}
-	if(pressed['S'.charCodeAt(0)]) {
-		dir[1] -= 1;
-	}
-	if(pressed['A'.charCodeAt(0)]) {
-		dir[0] -= 1;
-	}
-	if(pressed['D'.charCodeAt(0)]) {
-		dir[0] += 1;
-	}
-	
-	if(dir[0] != 0 || dir[1] != 0 || dir[2] != 0) {
-		mat4.identity(cameraMat);
-		mat4.rotateZ(cameraMat, zAngle);
-		mat4.inverse(cameraMat);
-		
-		mat4.multiplyVec3(cameraMat, dir);
-	}
-	
-	// Send desired movement direction to the player mover for collision detection against the map
-	playerMover.move(dir, frameTime);
+function moveLookLocked(xDelta, yDelta) {
+    zAngle += xDelta*0.0025;
+    while (zAngle < 0)
+        zAngle += Math.PI*2;
+    while (zAngle >= Math.PI*2)
+        zAngle -= Math.PI*2;
+            
+    xAngle += yDelta*0.0025;
+    while (xAngle < -Math.PI*0.5)
+        xAngle = -Math.PI*0.5;
+    while (xAngle > Math.PI*0.5)
+        xAngle = Math.PI*0.5;
 }
 
-//====================
-// Mouselock shims
-navigator.pointer = navigator.pointer || navigator.webkitPointer;
+var controllers = [];
 
-var pointerLocked = (function() {
-    if(navigator.pointer) {
-        if(typeof(navigator.pointer.isLocked) === "boolean") {
-            // This is what it should be, according to spec.
-            return function() { return navigator.pointer.isLocked; }
-        } else if(typeof(navigator.pointer.isLocked) === "function") {
-            // This is what it should be, according to spec.
-            return function() { return navigator.pointer.isLocked(); }
-        } else if(typeof(navigator.pointer.islocked) === "function") {
-            // For compatibility with early Firefox build
-            return function() { return navigator.pointer.islocked(); }
+function onGamepadConnected(e) {
+  controllers[e.gamepad.index] = e.gamepad;
+}
+
+function onGamepadDisconnected(e) {
+  delete controllers[e.gamepad.index];
+}
+
+window.addEventListener('webkitgamepadconnected', onGamepadConnected, false);
+window.addEventListener('webkitgamepaddisconnected', onGamepadDisconnected, false);
+
+window.addEventListener('MozGamepadDisconnected', onGamepadDisconnected, false);
+window.addEventListener('MozGamepadConnected', onGamepadConnected, false);
+
+function filterDeadzone(value) {
+    return Math.abs(value) > 0.35 ? value : 0;
+}
+
+function updateInput(frameTime) {
+    if(!playerMover) { return; }
+        
+    var dir = [0, 0, 0];
+    
+    // This is our first person movement code. It's not really pretty, but it works
+    if(pressed['W'.charCodeAt(0)]) {
+        dir[1] += 1;
+    }
+    if(pressed['S'.charCodeAt(0)]) {
+        dir[1] -= 1;
+    }
+    if(pressed['A'.charCodeAt(0)]) {
+        dir[0] -= 1;
+    }
+    if(pressed['D'.charCodeAt(0)]) {
+        dir[0] += 1;
+    }
+    
+    var gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
+    
+    for (var i = 0; i < gamepads.length; ++i) {
+        var pad = gamepads[i];
+        if(pad) {
+            dir[0] += filterDeadzone(pad.axes[0]);
+            dir[1] -= filterDeadzone(pad.axes[1]);
+        
+            moveLookLocked(
+                filterDeadzone(pad.axes[2]) * 25.0, 
+                filterDeadzone(pad.axes[3]) * 25.0
+            );
+            
+            for(var j = 0; j < pad.buttons.length; ++j) {
+                if(pad.buttons[j]) { playerMover.jump(); }
+            }
         }
     }
-    return function() { return false }; // not supported, never locked
-})();
-
-function lockMouse() {
-    var viewport = document.getElementById("viewport");
-    if(navigator.pointer && !pointerLocked()) {
-        navigator.pointer.lock(viewport, function() {  
-            //console.log("I can haz mouselock!");
-        }, function() {  
-            //console.log("Epic mouselock fail!");
-        });
+    
+    /*if(Gamepad.supported) {
+        var pads = Gamepad.getStates();
+        for (var i = 0; i < pads.length; ++i) {
+            if (pads[i]) {
+                // Walk
+                dir[0] += pads[i].leftStickX;
+                dir[1] += pads[i].leftStickY;
+                
+                // Look
+                moveLookLocked(pads[i].rightStickX, pads[i].rightStickY);
+            }
+        }
+    }*/
+    
+    if(dir[0] != 0 || dir[1] != 0 || dir[2] != 0) {
+        mat4.identity(cameraMat);
+        mat4.rotateZ(cameraMat, zAngle);
+        mat4.inverse(cameraMat);
+        
+        mat4.multiplyVec3(cameraMat, dir);
     }
+    
+    // Send desired movement direction to the player mover for collision detection against the map
+    playerMover.move(dir, frameTime);
 }
-// end Mouselock shims
-//====================
 
 // Set up event handling
 function initEvents() {
-	var movingModel = false;
-	var lastX = 0;
-	var lastY = 0;
-	var lastMoveX = 0;
-	var lastMoveY = 0;
-	var viewport = document.getElementById("viewport");
+    var movingModel = false;
+    var lastX = 0;
+    var lastY = 0;
+    var lastMoveX = 0;
+    var lastMoveY = 0;
+    var viewport = document.getElementById("viewport");
+    var viewportFrame = document.getElementById("viewport-frame");
     
-	$(document).keydown(function(event) {
-		if(event.keyCode == 32 && !pressed[32]) {
-			playerMover.jump();
-		}
-		pressed[event.keyCode] = true;
-	});
-	
-	$(document).keypress(function(event) {
-		if(event.keyCode == 'R'.charCodeAt(0) || event.keyCode == 'r'.charCodeAt(0)) {
-			respawnPlayer(-1);
-		}
-	});
-	
-	$(document).keyup(function(event) {
-		pressed[event.keyCode] = false;
-	});
-	
-	function startLook(x, y) {
-		movingModel = true;
-		
-		lastX = x;
-		lastY = y;
-	}
-	
-	function endLook() {
-		movingModel = false;
-	}
-	
-	function moveLook(x, y) {
-		var xDelta = x - lastX;
-		var yDelta = y - lastY;
-		lastX = x;
-		lastY = y;
-		
-		if (movingModel) {
-			moveLookLocked(xDelta, yDelta);
-		}
-	}
-	
-	function moveLookLocked(xDelta, yDelta) {
-		zAngle += xDelta*0.0025;
-		while (zAngle < 0)
-			zAngle += Math.PI*2;
-		while (zAngle >= Math.PI*2)
-			zAngle -= Math.PI*2;
-			
-		xAngle += yDelta*0.0025;
-		while (xAngle < -Math.PI*0.5)
-			xAngle = -Math.PI*0.5;
-		while (xAngle > Math.PI*0.5)
-			xAngle = Math.PI*0.5;
-	}
-	
-	function startMove(x, y) {
-		lastMoveX = x;
-		lastMoveY = y;
-	}
-	
-	function moveUpdate(x, y, frameTime) {
-		var xDelta = x - lastMoveX;
-		var yDelta = y - lastMoveY;
-		lastMoveX = x;
-		lastMoveY = y;
+    document.addEventListener("keydown", function(event) {
+        if(event.keyCode == 32 && !pressed[32]) {
+            playerMover.jump();
+        }
+        pressed[event.keyCode] = true;
+    }, false);
+    
+    document.addEventListener("keypress", function(event) {
+        if(event.keyCode == 'R'.charCodeAt(0) || event.keyCode == 'r'.charCodeAt(0)) {
+            respawnPlayer(-1);
+        }
+    }, false);
+    
+    document.addEventListener("keyup", function(event) {
+        pressed[event.keyCode] = false;
+    }, false);
+    
+    function startLook(x, y) {
+        movingModel = true;
+        
+        lastX = x;
+        lastY = y;
+    }
+    
+    function endLook() {
+        movingModel = false;
+    }
+    
+    function moveLook(x, y) {
+        var xDelta = x - lastX;
+        var yDelta = y - lastY;
+        lastX = x;
+        lastY = y;
+        
+        if (movingModel) {
+            moveLookLocked(xDelta, yDelta);
+        }
+    }
+    
+    function startMove(x, y) {
+        lastMoveX = x;
+        lastMoveY = y;
+    }
+    
+    function moveUpdate(x, y, frameTime) {
+        var xDelta = x - lastMoveX;
+        var yDelta = y - lastMoveY;
+        lastMoveX = x;
+        lastMoveY = y;
 
-		var dir = [xDelta, yDelta * -1, 0];
+        var dir = [xDelta, yDelta * -1, 0];
 
-		mat4.identity(cameraMat);
-		mat4.rotateZ(cameraMat, zAngle);
-		mat4.inverse(cameraMat);
+        mat4.identity(cameraMat);
+        mat4.rotateZ(cameraMat, zAngle);
+        mat4.inverse(cameraMat);
 
-		mat4.multiplyVec3(cameraMat, dir);
+        mat4.multiplyVec3(cameraMat, dir);
 
-		// Send desired movement direction to the player mover for collision detection against the map
-		playerMover.move(dir, frameTime*2);
-	}
-	
-	$('#viewport').click(function(event) {
-		lockMouse();
-	});
-	
-	// Mouse handling code
-	// When the mouse is pressed it rotates the players view
-	$('#viewport').mousedown(function(event) {
-		if(event.which == 1) {
-			startLook(event.pageX, event.pageY);
-		}
-	});
-	$('#viewport').mouseup(function(event) {
-		endLook();
-	});
-	$('#viewport').mousemove(function(event) {
-	    if(pointerLocked()) {
-			var deltaX = event.originalEvent.movementX || event.originalEvent.webkitMovementX || 0;
-			var deltaY = event.originalEvent.movementY || event.originalEvent.webkitMovementY || 0;
-	        moveLookLocked(deltaX, deltaY);
+        // Send desired movement direction to the player mover for collision detection against the map
+        playerMover.move(dir, frameTime*2);
+    }
+    
+    viewport.addEventListener("click", function(event) {
+        viewport.requestPointerLock();
+    }, false);
+    
+    // Mouse handling code
+    // When the mouse is pressed it rotates the players view
+    viewport.addEventListener("mousedown", function(event) {
+        if(event.which == 1) {
+            startLook(event.pageX, event.pageY);
+        }
+    }, false);
+    viewport.addEventListener("mouseup", function(event) {
+        endLook();
+    }, false);
+    viewportFrame.addEventListener("mousemove", function(event) {
+        if(document.pointerLockEnabled) {
+            var deltaX = event.movementX || event.webkitMovementX || event.mozMovementX || 0;
+            var deltaY = event.movementY || event.webkitMovementY || event.mozMovementX || 0;
+            moveLookLocked(deltaX, deltaY);
         } else {
-		    moveLook(event.pageX, event.pageY);
-	    }
-	});
-	
-	// Touch handling code
-	$('#viewport').bind('touchstart', function(event) {
-		var touches = event.originalEvent.touches;
-		switch(touches.length) {
-			case 1: // Single finger looks around
-				startLook(touches[0].pageX, touches[0].pageY);
-				break;
-			case 2: // Two fingers moves
-				startMove(touches[0].pageX, touches[0].pageY);
-				break;
-			case 3: // Three finger tap jumps
-				playerMover.jump();
-				break;
-			default:
-				return;
-		}
-		event.stopPropagation();
-		event.preventDefault();
-	});
-	$('#viewport').bind('touchend', function(event) {
-		endLook();
-		return false;
-	});
-	$('#viewport').bind('touchmove', function(event) {
-		var touches = event.originalEvent.touches;
-		switch(touches.length) {
-			case 1:
-				moveLook(touches[0].pageX, touches[0].pageY);
-				break;
-			case 2:
-				moveUpdate(touches[0].pageX, touches[0].pageY, 16);
-				break;
-			default:
-				return;
-		}
-		event.stopPropagation();
-		event.preventDefault();
-	});
+            moveLook(event.pageX, event.pageY);
+        }
+    }, false);
+    
+    // Touch handling code
+    viewport.addEventListener('touchstart', function(event) {
+        var touches = event.touches;
+        switch(touches.length) {
+            case 1: // Single finger looks around
+                startLook(touches[0].pageX, touches[0].pageY);
+                break;
+            case 2: // Two fingers moves
+                startMove(touches[0].pageX, touches[0].pageY);
+                break;
+            case 3: // Three finger tap jumps
+                playerMover.jump();
+                break;
+            default:
+                return;
+        }
+        event.stopPropagation();
+        event.preventDefault();
+    }, false);
+    viewport.addEventListener('touchend', function(event) {
+        endLook();
+        return false;
+    }, false);
+    viewport.addEventListener('touchmove', function(event) {
+        var touches = event.touches;
+        switch(touches.length) {
+            case 1:
+                moveLook(touches[0].pageX, touches[0].pageY);
+                break;
+            case 2:
+                moveUpdate(touches[0].pageX, touches[0].pageY, 16);
+                break;
+            default:
+                return;
+        }
+        event.stopPropagation();
+        event.preventDefault();
+    }, false);
 }
 
 // Utility function that tests a list of webgl contexts and returns when one can be created
 // Hopefully this future-proofs us a bit
 function getAvailableContext(canvas, contextList) {
-	if (canvas.getContext) {
-		for(var i = 0; i < contextList.length; ++i) {
-			try {
-				var context = canvas.getContext(contextList[i], { antialias:false });
-				if(context != null)
-					return context;
-			} catch(ex) { }
-		}
-	}
-	return null;
+    if (canvas.getContext) {
+        for(var i = 0; i < contextList.length; ++i) {
+            try {
+                var context = canvas.getContext(contextList[i], { antialias:false });
+                if(context != null)
+                    return context;
+            } catch(ex) { }
+        }
+    }
+    return null;
 }
+
+function renderLoop(gl, element) {
+    var lastTimestamp = window.animationStartTime;
+    var lastFps = window.animationStartTime;
+    var framesPerSecond = 0;
+    var frameCount = 0;
+            
+    function onRequestedFrame(timestamp){
+        if(!timestamp) {
+            timestamp = new Date().getTime();
+        }
+
+        // Update FPS if a second or more has passed since last FPS update
+        if(timestamp - lastFps >= 1000) {
+            framesPerSecond = frameCount;
+            frameCount = 0;
+            lastFps = timestamp;
+        } 
+        
+        window.requestAnimationFrame(onRequestedFrame, element);
+        
+        onFrame(gl, {
+            timestamp: timestamp,
+            elapsed: timestamp - window.animationStartTime,
+            frameTime: timestamp - lastTimestamp,
+            framesPerSecond: framesPerSecond,
+        });
+        ++frameCount;
+    };
+    window.requestAnimationFrame(onRequestedFrame, element);
+};
 
 var GL_WINDOW_WIDTH = 854;
 var GL_WINDOW_HEIGHT = 480;
 
 function main() {
-	var canvas = $('#viewport').get(0);
-	
-	// Set the canvas size
-	canvas.width = GL_WINDOW_WIDTH;
-	canvas.height = GL_WINDOW_HEIGHT;
-	
-	// Get the GL Context (try 'webgl' first, then fallback)
-	var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
-	
-	if(!gl) {
-		$('#viewport-frame').remove();
-		$('#webgl-error').show();
-	} else {
-		$('#viewport-info').show();
-		initEvents();
-		initGL(gl, canvas);
-		
-		// use requestAnimationFrame to do animation if available
-		$(canvas).requestAnimation(function(event) {
-			if(!map || !playerMover) { return; }
-			onFrame(gl, event); 
-		});
-	}
+    var canvas = document.getElementById("viewport");
+    
+    // Set the canvas size
+    canvas.width = GL_WINDOW_WIDTH;
+    canvas.height = GL_WINDOW_HEIGHT;
+    
+    // Get the GL Context (try 'webgl' first, then fallback)
+    var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
+    
+    if(!gl) {
+        document.getElementById('viewport-frame').style.display = 'none';
+        document.getElementById('webgl-error').style.display = 'block';
+    } else {
+        document.getElementById('viewport-info').style.display = 'block';
+        initEvents();
+        initGL(gl, canvas);
+        renderLoop(gl, canvas);
+    }
 
-	$('#showFPS').change(function() {
-		if($('#showFPS:checked').length) {
-			$('#fps-counter').show();
-		} else {
-			$('#fps-counter').hide();
-		}
-	});
-	
-	$('#playMusic').change(function() {
-		if(map) {
-			map.playMusic($('#playMusic:checked').length > 0);
-		}
-	});
-	
-	// Handle fullscreen transition
-	function fullscreenchange() {
-		if(document.webkitIsFullScreen || document.mozFullScreen) {
-			canvas.width = screen.width;
-			canvas.height = screen.height;
-			lockMouse(); // Attempt to lock the mouse automatically
-		} else {
-			canvas.width = GL_WINDOW_WIDTH;
-			canvas.height = GL_WINDOW_HEIGHT;
-		}
-		gl.viewport(0, 0, canvas.width, canvas.height);
-		mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
-	};
-	
-	document.addEventListener("webkitfullscreenchange", fullscreenchange, false);
-	document.addEventListener("mozfullscreenchange", fullscreenchange, false);
-	
-	$('#fullscreenBtn').click(function() {
-		if(canvas.webkitRequestFullScreen) {
-			canvas.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
-		} else if(canvas.mozRequestFullScreen) {
-			canvas.mozRequestFullScreen();
-		}
-	});
+    var fpsCounter = document.getElementById("fps-counter");
+    var showFPS = document.getElementById("showFPS");
+    showFPS.addEventListener("change", function() {
+        if(showFPS.checked) {
+            fpsCounter.style.display = "block";
+        } else {
+            fpsCounter.style.display = "none";
+        }
+    });
+    
+    var playMusic = document.getElementById("playMusic");
+    playMusic.addEventListener("change", function() {
+        if(map) {
+            map.playMusic(playMusic.checked);
+        }
+    });
+    
+    // Handle fullscreen transition
+    var viewportFrame = document.getElementById("viewport-frame");
+    document.addEventListener("fullscreenchange", function() {
+        if(document.fullscreenEnabled) {
+            canvas.width = screen.width;
+            canvas.height = screen.height;
+            viewportFrame.requestPointerLock(); // Attempt to lock the mouse automatically on fullscreen
+        } else {
+            canvas.width = GL_WINDOW_WIDTH;
+            canvas.height = GL_WINDOW_HEIGHT;
+        }
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
+    }, false);
+    
+    var button = document.getElementById('fullscreenBtn');
+    button.addEventListener('click', function() {
+        viewportFrame.requestFullScreen();
+    }, false);
 }
-
-$(main); // Fire this once the page is loaded up
+window.addEventListener("load", main); // Fire this once the page is loaded up

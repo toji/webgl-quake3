@@ -49,8 +49,6 @@ h2 {
 canvas {
 	cursor: move;
 	text-align: center;
-	-moz-border-radius: 5px;
-	-webkit-border-radius: 5px;
 	background-color: black;
 	display: none;
 }
@@ -96,14 +94,22 @@ canvas {
     cursor: pointer;
 }
 
-canvas:-moz-full-screen {
+#viewport-frame:-moz-full-screen, canvas:-moz-full-screen {
     width: 100%;
     height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
 }
 
-canvas:-webkit-full-screen {
+#viewport-frame:-webkit-full-screen, canvas:-webkit-full-screen {
     width: 100%;
     height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
 }
 
 #loading {
