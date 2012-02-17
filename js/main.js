@@ -360,9 +360,7 @@ function initEvents() {
     }, false);
     viewportFrame.addEventListener("mousemove", function(event) {
         if(document.pointerLockEnabled) {
-            var deltaX = event.movementX || event.webkitMovementX || event.mozMovementX || 0;
-            var deltaY = event.movementY || event.webkitMovementY || event.mozMovementX || 0;
-            moveLookLocked(deltaX, deltaY);
+            moveLookLocked(event.movementX, event.movementY);
         } else {
             moveLook(event.pageX, event.pageY);
         }

@@ -82,8 +82,8 @@
             if("webkitFullscreenElement" in document) {
                 return function() { return document.webkitFullscreenElement; }
             }
-            if("mozFullscreenElemen" in document) {
-                return function() { return document.mozFullscreenElemen; }
+            if("mozFullscreenElement" in document) {
+                return function() { return document.mozFullscreenElement; }
             }
             return function() { return null }; // not supported
         })();
@@ -140,7 +140,23 @@
     //=====================
     // Mouse Lock
     //=====================
-
+    
+    var mouseEventPrototype = global.MouseEvent.prototype;
+    
+    if(!("movementX" in mouseEventPrototype)) {
+        Object.defineProperty(mouseEventPrototype, "movementX", { 
+            enumerable: true, configurable: false, writeable: false,
+            get: function() { return this.webkitMovementX || this.mozMovementX || 0; }
+        });
+    }
+    
+    if(!("movementY" in mouseEventPrototype)) {
+        Object.defineProperty(mouseEventPrototype, "movementY", { 
+            enumerable: true, configurable: false, writeable: false,
+            get: function() { return this.webkitMovementY || this.mozMovementY || 0; }
+        });
+    }
+    
     // Navigator pointer is not the right interface according to spec.
     // Here for backwards compatibility only
     if(!navigator.pointer) {
@@ -180,6 +196,25 @@
         });
     }
     
+    if(!document.hasOwnProperty("pointerLockElement")) {
+        var getter = (function() {
+            // These are the functions that match the spec, and should be preferred
+            if("webkitPointerLockElement" in document) {
+                return function() { return document.webkitPointerLockElement; }
+            }
+            if("mozPointerLockElement" in document) {
+                return function() { return document.mozPointerLockElement; }
+            }
+            
+            return function() { return null }; // not supported
+        })();
+        
+        Object.defineProperty(document, "pointerLockElement", { 
+            enumerable: true, configurable: false, writeable: false,
+            get: getter
+        });
+    }
+    
     // element.requestPointerLock
     if(!elementPrototype.requestPointerLock) {
         elementPrototype.requestPointerLock = (function() {
@@ -193,5 +228,20 @@
                     };
         })();
     }
+    
+    // document.exitPointerLock
+    if(!document.exitPointerLock) {
+        document.exitPointerLock = (function() {
+            return  document.webkitExitPointerLock ||
+                    document.mozExitPointerLock || 
+                    function(){
+                        if(navigator.pointer) { 
+                            var elem = this;
+                            navigator.pointer.unlock(); 
+                        }
+                    };
+        })();
+    }
+    
     
 })((typeof(exports) != 'undefined') ? global : window);
