@@ -227,10 +227,8 @@ function updateInput(frameTime) {
         dir[0] += 1;
     }
     
-    var gamepads = navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || [];
-    
-    for (var i = 0; i < gamepads.length; ++i) {
-        var pad = gamepads[i];
+    for (var i = 0; i < navigator.gamepads.length; ++i) {
+        var pad = navigator.gamepads[i];
         if(pad) {
             dir[0] += filterDeadzone(pad.axes[0]);
             dir[1] -= filterDeadzone(pad.axes[1]);
@@ -245,20 +243,6 @@ function updateInput(frameTime) {
             }
         }
     }
-    
-    /*if(Gamepad.supported) {
-        var pads = Gamepad.getStates();
-        for (var i = 0; i < pads.length; ++i) {
-            if (pads[i]) {
-                // Walk
-                dir[0] += pads[i].leftStickX;
-                dir[1] += pads[i].leftStickY;
-                
-                // Look
-                moveLookLocked(pads[i].rightStickX, pads[i].rightStickY);
-            }
-        }
-    }*/
     
     if(dir[0] != 0 || dir[1] != 0 || dir[2] != 0) {
         mat4.identity(cameraMat);

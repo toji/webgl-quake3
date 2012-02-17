@@ -1,3 +1,9 @@
+/**
+ * @fileoverview game-shim - Shims to normalize gaming-related APIs to their respective specs
+ * @author Brandon Jones
+ * @version 0.1
+ */
+
 /*
  * Copyright (c) 2011 Brandon Jones
  *
@@ -21,7 +27,6 @@
  *    distribution.
  */
 
-// Account for CommonJS environments
 (function(global) {
     "use strict";
 
@@ -243,5 +248,28 @@
         })();
     }
     
+    //=====================
+    // Gamepad
+    //=====================
     
-})((typeof(exports) != 'undefined') ? global : window);
+    if(!navigator.gamepads) {
+        var getter = (function() {
+            // These are the functions that match the spec, and should be preferred
+            if("webkitGamepads" in navigator) {
+                return function() { return navigator.webkitGamepads; }
+            }
+            if("mozGamepads" in navigator) {
+                return function() { return navigator.mozGamepads; }
+            }
+            
+            var gamepads = new Array();
+            return function() { return gamepads }; // not supported, return empty array
+        })();
+        
+        Object.defineProperty(navigator, "gamepads", { 
+            enumerable: true, configurable: false, writeable: false,
+            get: getter
+        });
+    }
+    
+})((typeof(exports) != 'undefined') ? global : window); // Account for CommonJS environments
