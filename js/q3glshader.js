@@ -85,9 +85,6 @@ q3bsp_model_fragment = '\
     } \n\
 ';
 
-q3bsp_shader_attribs = ['position', 'normal', 'texCoord', 'lightCoord', 'color'];
-q3bsp_shader_uniforms = ['modelViewMat', 'projectionMat', 'time', 'texture', 'lightmap'];
-
 var q3glshader = {}
 
 q3glshader.lightmap = null;
@@ -101,8 +98,8 @@ q3glshader.init = function(gl, lightmap) {
     q3glshader.lightmap = lightmap;
     q3glshader.white = q3glshader.createSolidTexture(gl, [255,255,255,255]);
     
-    q3glshader.defaultProgram = q3glshader.compileShaderProgram(gl, q3bsp_default_vertex, q3bsp_default_fragment, q3bsp_shader_attribs, q3bsp_shader_uniforms);
-    q3glshader.modelProgram = q3glshader.compileShaderProgram(gl, q3bsp_default_vertex, q3bsp_model_fragment, q3bsp_shader_attribs, q3bsp_shader_uniforms); 
+    q3glshader.defaultProgram = q3glshader.compileShaderProgram(gl, q3bsp_default_vertex, q3bsp_default_fragment);
+    q3glshader.modelProgram = q3glshader.compileShaderProgram(gl, q3bsp_default_vertex, q3bsp_model_fragment); 
     
     var image = new Image();
     q3glshader.defaultTexture = gl.createTexture();
@@ -367,7 +364,7 @@ q3glshader.setShaderStage = function(gl, shader, shaderStage, time) {
 // Shader program compilation
 //
 
-q3glshader.compileShaderProgram = function(gl, vertexSrc, fragmentSrc, attribs, uniforms) {
+q3glshader.compileShaderProgram = function(gl, vertexSrc, fragmentSrc) {
     var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
     gl.shaderSource(fragmentShader, fragmentSrc);
     gl.compileShader(fragmentShader);
@@ -406,18 +403,21 @@ q3glshader.compileShaderProgram = function(gl, vertexSrc, fragmentSrc, attribs, 
         console.debug(fragmentSrc);*/
         return null;
     }
-
-    gl.useProgram(shaderProgram);
     
+    var i, attrib, uniform;
+    var attribCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_ATTRIBUTES);
     shaderProgram.attrib = {};
-    for(var i = 0; i < attribs.length; ++i) {
-        shaderProgram.attrib[attribs[i]] = gl.getAttribLocation(shaderProgram, attribs[i]);
+    for (i = 0; i < attribCount; i++) {
+        attrib = gl.getActiveAttrib(shaderProgram, i);
+        shaderProgram.attrib[attrib.name] = gl.getAttribLocation(shaderProgram, attrib.name);
     }
-    
+
+    var uniformCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_UNIFORMS);
     shaderProgram.uniform = {};
-    for(var i = 0; i < uniforms.length; ++i) {
-        shaderProgram.uniform[uniforms[i]] = gl.getUniformLocation(shaderProgram, uniforms[i]);
+    for (i = 0; i < uniformCount; i++) {
+        uniform = gl.getActiveUniform(shaderProgram, i);
+        shaderProgram.uniform[uniform.name] = gl.getUniformLocation(shaderProgram, uniform.name);
     }
-    
+
     return shaderProgram;
 }

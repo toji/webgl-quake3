@@ -389,22 +389,22 @@ q3bsp.prototype.bindShaderAttribs = function(shader, modelViewMat, projectionMat
     gl.enableVertexAttribArray(shader.attrib.position);
     gl.vertexAttribPointer(shader.attrib.position, 3, gl.FLOAT, false, q3bsp_vertex_stride, 0);
         
-    if(shader.attrib.texCoord != -1) {
+    if(shader.attrib.texCoord !== undefined) {
         gl.enableVertexAttribArray(shader.attrib.texCoord);
         gl.vertexAttribPointer(shader.attrib.texCoord, 2, gl.FLOAT, false, q3bsp_vertex_stride, 3*4);
     }
     
-    if(shader.attrib.lightCoord != -1) {
+    if(shader.attrib.lightCoord !== undefined) {
         gl.enableVertexAttribArray(shader.attrib.lightCoord);
         gl.vertexAttribPointer(shader.attrib.lightCoord, 2, gl.FLOAT, false, q3bsp_vertex_stride, 5*4);
     }
     
-    if(shader.attrib.normal != -1) {
+    if(shader.attrib.normal !== undefined) {
         gl.enableVertexAttribArray(shader.attrib.normal);
         gl.vertexAttribPointer(shader.attrib.normal, 3, gl.FLOAT, false, q3bsp_vertex_stride, 7*4);
     }
     
-    if(shader.attrib.color != -1) {
+    if(shader.attrib.color !== undefined) {
         gl.enableVertexAttribArray(shader.attrib.color);
         gl.vertexAttribPointer(shader.attrib.color, 4, gl.FLOAT, false, q3bsp_vertex_stride, 10*4);
     }
@@ -427,7 +427,7 @@ q3bsp.prototype.bindSkyAttribs = function(shader, modelViewMat, projectionMat) {
     gl.enableVertexAttribArray(shader.attrib.position);
     gl.vertexAttribPointer(shader.attrib.position, 3, gl.FLOAT, false, q3bsp_sky_vertex_stride, 0);
         
-    if(shader.attrib.texCoord != -1) {
+    if(shader.attrib.texCoord !== undefined) {
         gl.enableVertexAttribArray(shader.attrib.texCoord);
         gl.vertexAttribPointer(shader.attrib.texCoord, 2, gl.FLOAT, false, q3bsp_sky_vertex_stride, 3*4);
     }
