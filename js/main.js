@@ -188,22 +188,6 @@ function moveLookLocked(xDelta, yDelta) {
         xAngle = Math.PI*0.5;
 }
 
-var controllers = [];
-
-function onGamepadConnected(e) {
-  controllers[e.gamepad.index] = e.gamepad;
-}
-
-function onGamepadDisconnected(e) {
-  delete controllers[e.gamepad.index];
-}
-
-window.addEventListener('webkitgamepadconnected', onGamepadConnected, false);
-window.addEventListener('webkitgamepaddisconnected', onGamepadDisconnected, false);
-
-window.addEventListener('MozGamepadDisconnected', onGamepadDisconnected, false);
-window.addEventListener('MozGamepadConnected', onGamepadConnected, false);
-
 function filterDeadzone(value) {
     return Math.abs(value) > 0.35 ? value : 0;
 }
@@ -274,7 +258,7 @@ function initEvents() {
     }, false);
     
     document.addEventListener("keypress", function(event) {
-        if(event.keyCode == 'R'.charCodeAt(0) || event.keyCode == 'r'.charCodeAt(0)) {
+        if(event.charCode == 'R'.charCodeAt(0) || event.charCode == 'r'.charCodeAt(0)) {
             respawnPlayer(-1);
         }
     }, false);
