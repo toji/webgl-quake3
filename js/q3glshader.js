@@ -221,7 +221,7 @@ q3glshader.loadShaderMaps = function(gl, surface, shader) {
         }
         
         if(stage.shaderSrc && !stage.program) {
-            stage.program = q3glshader.compileShaderProgram(gl, stage.shaderSrc.vertex, stage.shaderSrc.fragment, q3bsp_shader_attribs, q3bsp_shader_uniforms);
+            stage.program = q3glshader.compileShaderProgram(gl, stage.shaderSrc.vertex, stage.shaderSrc.fragment);
         }
     }
 };

@@ -36,20 +36,34 @@
     // Animation
     //=====================
     
-    // window.requestAnimationFrame
-    if(!window.requestAnimationFrame) {
-        window.requestAnimationFrame = (function(){
-            return  window.webkitRequestAnimationFrame || 
-                    window.mozRequestAnimationFrame    || 
-                    window.oRequestAnimationFrame      || 
-                    window.msRequestAnimationFrame     || 
-                    function(callback, element){
-                      window.setTimeout(function() {
-                          callback(new Date().getTime());
-                      }, 1000 / 60);
-                    };
-        })();
-    }
+    // window.requestAnimaionFrame, credit: Erik Moller
+    // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
+    (function() {
+        var lastTime = 0;
+        var vendors = ['ms', 'moz', 'webkit', 'o'];
+        for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+            window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+            window.cancelRequestAnimationFrame = window[vendors[x]+
+              'CancelRequestAnimationFrame'];
+        }
+
+        if (!window.requestAnimationFrame) {
+            window.requestAnimationFrame = function(callback, element) {
+                var currTime = new Date().getTime();
+                var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+                var id = window.setTimeout(function() { callback(timeToCall); }, 
+                  timeToCall);
+                lastTime = currTime + timeToCall;
+                return id;
+            };
+        }
+
+        if (!window.cancelRequestAnimationFrame) {
+            window.cancelRequestAnimationFrame = function(id) {
+                clearTimeout(id);
+            };
+        }
+    }());
     
     // window.animationStartTime
     if(!window.animationStartTime) {
