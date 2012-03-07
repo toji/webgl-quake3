@@ -134,7 +134,7 @@ canvas {
     height: 100%;
 }
 
-.mobile #viewport-frame,
+.mobile #viewport-frame
  {
     width: 100%;
     height: 100%;
