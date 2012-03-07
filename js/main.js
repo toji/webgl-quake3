@@ -51,6 +51,7 @@ var mapShaders = ['scripts/web_demo.shader'];
 var modelViewMat, projectionMat;
 var activeShader;
 var map, playerMover;
+var mobileSite = false;
 
 var zAngle = 3;
 var xAngle = 0;
@@ -66,6 +67,12 @@ function getQueryVariable(variable) {
         }
     }
     return null;
+}
+
+// Take a stab at detecting if this is a mobile device or not
+function isMobile() {
+    var index = navigator.appVersion.indexOf("Mobile");
+    return (index > -1);
 }
 
 // Set up basic GL State up front
@@ -420,10 +427,22 @@ function renderLoop(gl, element) {
     window.requestAnimationFrame(onRequestedFrame, element);
 }
 
+function makeSiteMobile() {
+    mobileSite = true;
+    document.body.classList.add("mobile");
+    GL_WINDOW_WIDTH = window.innerWidth/2;
+    GL_WINDOW_HEIGHT = window.innerHeight/2;
+}
+
 var GL_WINDOW_WIDTH = 854;
 var GL_WINDOW_HEIGHT = 480;
 
 function main() {
+    var mobileQS = getQueryVariable("mobile");
+    if(mobileQS === "1" || (mobileQS !== "0" && isMobile())) {
+        makeSiteMobile();
+    }
+
     var canvas = document.getElementById("viewport");
     
     // Set the canvas size
