@@ -86,10 +86,6 @@ canvas {
     text-align: right;
 }
 
-#shaderSelect {
-    width: 220px;
-}
-
 #fullscreenBtn {
     cursor: pointer;
 }
@@ -133,7 +129,13 @@ canvas {
     display: none !important;
 }
 
-.mobile #viewport-frame {
+.mobile #webgl-error {
+    width: 100%;
+    height: 100%;
+}
+
+.mobile #viewport-frame,
+ {
     width: 100%;
     height: 100%;
     position: absolute;
