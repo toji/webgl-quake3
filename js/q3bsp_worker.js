@@ -32,7 +32,11 @@ importScripts('./util/gl-matrix-min.js');
 onmessage = function(msg) {
     switch(msg.data.type) {
         case 'load':
-            q3bsp.load(msg.data.url, msg.data.tesselationLevel);
+            q3bsp.load(msg.data.url, msg.data.tesselationLevel, function() {
+                // Fallback to account for Opera handling URLs in a worker 
+                // differently than other browsers. 
+                q3bsp.load("../" + msg.data.url, msg.data.tesselationLevel);
+            });
             break;
         case 'loadShaders':
             q3shader.loadList(msg.data.sources);
@@ -57,12 +61,17 @@ var shaders; // This needs to be kept here for collision detection (indicates no
 
 q3bsp = {};
 
-q3bsp.load = function(url, tesselationLevel) {
+q3bsp.load = function(url, tesselationLevel, errorCallback) {
     var request = new XMLHttpRequest();
     
     request.onreadystatechange = function () {
         if (request.readyState == 4 && request.status == 200) {
             q3bsp.parse(new BinaryFile(request.responseText), tesselationLevel);
+        }
+        else if(request.status == 404) {
+            if(errorCallback) {
+                errorCallback(request.status);
+            }
         }
     };
     
