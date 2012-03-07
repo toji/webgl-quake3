@@ -1,4 +1,4 @@
-/* 
+/*
  * q3bsp.js - Parses Quake 3 Maps (.bsp) for use in WebGL
  */
  
@@ -72,10 +72,10 @@ q3bsp = function(gl) {
     
     // Sorted draw elements
     this.skyShader = null;
-    this.unshadedSurfaces = new Array();
-    this.defaultSurfaces = new Array();
-    this.modelSurfaces = new Array();
-    this.effectSurfaces = new Array();
+    this.unshadedSurfaces = [];
+    this.defaultSurfaces = [];
+    this.modelSurfaces = [];
+    this.effectSurfaces = [];
     
     // BSP Elements
     this.bspTree = null;
@@ -131,7 +131,7 @@ q3bsp.prototype.onMessage = function(msg) {
             break;
         default:
             throw 'Unexpected message type: ' + msg.data.type;
-    };
+    }
 };
 
 q3bsp.prototype.showLoadStatus = function() {
@@ -190,7 +190,7 @@ q3bsp.prototype.processEntities = function(entities) {
         this.bgMusic.play();
     }
     
-    // It would be relatively easy to do some ambient sound processing here, but I don't really feel like 
+    // It would be relatively easy to do some ambient sound processing here, but I don't really feel like
     // HTML5 audio is up to the task. For example, lack of reliable gapless looping makes them sound terrible!
     // Look into this more when browsers get with the program.
     /*var speakers = entities.target_speaker;
@@ -247,7 +247,7 @@ q3bsp.prototype.buildBuffers = function(vertices, indices) {
         -128, 128, 128, 1, 0,
         -128, -128, 128, 1, 1,
         -128, 128, -128, 0, 0,
-        -128, -128, -128, 0, 1,
+        -128, -128, -128, 0, 1
     ];
     
     var skyIndices = [
@@ -264,7 +264,7 @@ q3bsp.prototype.buildBuffers = function(vertices, indices) {
         13, 14, 15,
         
         16, 17, 18,
-        17, 18, 19,
+        17, 18, 19
     ];
     
     this.skyboxBuffer = gl.createBuffer();
@@ -288,7 +288,7 @@ q3bsp.prototype.buildLightmaps = function(size, lightmaps) {
     
     for(var i = 0; i < lightmaps.length; ++i) {
         gl.texSubImage2D(
-            gl.TEXTURE_2D, 0, lightmaps[i].x, lightmaps[i].y, lightmaps[i].width, lightmaps[i].height, 
+            gl.TEXTURE_2D, 0, lightmaps[i].x, lightmaps[i].y, lightmaps[i].width, lightmaps[i].height,
             gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(lightmaps[i].bytes)
             );
     }
@@ -317,14 +317,14 @@ q3bsp.prototype.bindShaders = function() {
     
     for(var i = 0; i < this.surfaces.length; ++i) {
         var surface = this.surfaces[i];
-        if(surface.elementCount == 0 || surface.shader || surface.shaderName == 'noshader') { continue; }
+        if(surface.elementCount === 0 || surface.shader || surface.shaderName == 'noshader') { continue; }
         this.unshadedSurfaces.push(surface);
     }
     
     var map = this;
     
     var interval = setInterval(function() {
-        if(map.unshadedSurfaces.length == 0) { // Have we processed all surfaces?
+        if(map.unshadedSurfaces.length === 0) { // Have we processed all surfaces?
             // Sort to ensure correct order of transparent objects
             map.effectSurfaces.sort(function(a, b) {
                 var order = a.shader.sort - b.shader.sort;
@@ -352,7 +352,7 @@ q3bsp.prototype.bindShaders = function() {
             if(shader.sky) {
                 map.skyShader = shader; // Sky does not get pushed into effectSurfaces. It's a separate pass
             } else {
-                map.effectSurfaces.push(surface); 
+                map.effectSurfaces.push(surface);
             }
             q3glshader.loadShaderMaps(map.gl, surface, shader);
         }
@@ -431,10 +431,10 @@ q3bsp.prototype.bindSkyAttribs = function(shader, modelViewMat, projectionMat) {
         gl.enableVertexAttribArray(shader.attrib.texCoord);
         gl.vertexAttribPointer(shader.attrib.texCoord, 2, gl.FLOAT, false, q3bsp_sky_vertex_stride, 3*4);
     }
-}
+};
 
 q3bsp.prototype.draw = function(cameraPos, modelViewMat, projectionMat) {
-    if(this.vertexBuffer == null || this.indexBuffer == null) { return; } // Not ready to draw yet
+    if(this.vertexBuffer === null || this.indexBuffer === null) { return; } // Not ready to draw yet
     
     var gl = this.gl; // Easier to type and potentially a bit faster
     
@@ -452,7 +452,7 @@ q3bsp.prototype.draw = function(cameraPos, modelViewMat, projectionMat) {
             gl.bindBuffer(gl.ARRAY_BUFFER, this.skyboxBuffer);
         
             // Render Skybox
-            if(q3glshader.setShader(gl, this.skyShader)) { 
+            if(q3glshader.setShader(gl, this.skyShader)) {
                 for(var j = 0; j < this.skyShader.stages.length; ++j) {
                     var stage = this.skyShader.stages[j];
                     
@@ -553,10 +553,9 @@ q3bsp.prototype.draw = function(cameraPos, modelViewMat, projectionMat) {
 //
 // BSP Tree Collision Detection
 //
-
 q3bsptree = function(bsp) {
     this.bsp = bsp;
-}; 
+};
 
 q3bsptree.prototype.trace = function(start, end, radius) {
     var output = {
@@ -647,7 +646,7 @@ q3bsptree.prototype.traceNode = function(nodeIdx, startFraction, endFraction, st
             middle[i] = start[i] + fraction2 * (end[i] - start[i]);
         }
         
-        this.traceNode(node.children[side==0?1:0], middleFraction, endFraction, middle, end, radius, output );  
+        this.traceNode(node.children[side===0?1:0], middleFraction, endFraction, middle, end, radius, output );
     }
 };
 
@@ -673,33 +672,33 @@ q3bsptree.prototype.traceBrush = function(brush, start, end, radius, output) {
         if (startDist <= 0 && endDist <= 0) { continue; }
 
         if (startDist > endDist) { // line is entering into the brush
-            var fraction = (startDist - q3bsptree_trace_offset) / (startDist - endDist);  
+            var fraction = (startDist - q3bsptree_trace_offset) / (startDist - endDist);
             if (fraction > startFraction) {
                 startFraction = fraction;
                 collisionPlane = plane;
             }
         } else { // line is leaving the brush
-            var fraction = (startDist + q3bsptree_trace_offset) / (startDist - endDist); 
+            var fraction = (startDist + q3bsptree_trace_offset) / (startDist - endDist);
             if (fraction < endFraction)
                 endFraction = fraction;
         }
     }
     
-    if (startsOut == false) {
+    if (startsOut === false) {
         output.startSolid = true;
-        if (endsOut == false)
+        if (endsOut === false)
             output.allSolid = true;
-        return 
+        return;
     }
 
     if (startFraction < endFraction) {
         if (startFraction > -1 && startFraction < output.fraction) {
-            output.plane = collisionPlane
+            output.plane = collisionPlane;
             if (startFraction < 0)
                 startFraction = 0;
             output.fraction = startFraction;
         }
     }
     
-    return 
+    return;
 };

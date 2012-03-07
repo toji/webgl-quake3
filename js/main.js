@@ -1,4 +1,4 @@
-/* 
+/*
  * main.js - Setup for Quake 3 WebGL demo
  */
 
@@ -125,8 +125,8 @@ function respawnPlayer(index) {
     
         var spawnPoint = map.entities.info_player_deathmatch[index];
         playerMover.position = [
-            spawnPoint.origin[0], 
-            spawnPoint.origin[1], 
+            spawnPoint.origin[0],
+            spawnPoint.origin[1],
             spawnPoint.origin[2]+30 // Start a little ways above the floor
         ];
         
@@ -218,7 +218,7 @@ function updateInput(frameTime) {
             dir[1] -= filterDeadzone(pad.axes[1]);
         
             moveLookLocked(
-                filterDeadzone(pad.axes[2]) * 25.0, 
+                filterDeadzone(pad.axes[2]) * 25.0,
                 filterDeadzone(pad.axes[3]) * 25.0
             );
             
@@ -228,7 +228,7 @@ function updateInput(frameTime) {
         }
     }
     
-    if(dir[0] != 0 || dir[1] != 0 || dir[2] != 0) {
+    if(dir[0] !== 0 || dir[1] !== 0 || dir[2] !== 0) {
         mat4.identity(cameraMat);
         mat4.rotateZ(cameraMat, zAngle);
         mat4.inverse(cameraMat);
@@ -381,7 +381,7 @@ function getAvailableContext(canvas, contextList) {
         for(var i = 0; i < contextList.length; ++i) {
             try {
                 var context = canvas.getContext(contextList[i], { antialias:false });
-                if(context != null)
+                if(context !== null)
                     return context;
             } catch(ex) { }
         }
@@ -405,7 +405,7 @@ function renderLoop(gl, element) {
             framesPerSecond = frameCount;
             frameCount = 0;
             lastFps = timestamp;
-        } 
+        }
         
         window.requestAnimationFrame(onRequestedFrame, element);
         
@@ -413,12 +413,12 @@ function renderLoop(gl, element) {
             timestamp: timestamp,
             elapsed: timestamp - window.animationStartTime,
             frameTime: timestamp - lastTimestamp,
-            framesPerSecond: framesPerSecond,
+            framesPerSecond: framesPerSecond
         });
         ++frameCount;
-    };
+    }
     window.requestAnimationFrame(onRequestedFrame, element);
-};
+}
 
 var GL_WINDOW_WIDTH = 854;
 var GL_WINDOW_HEIGHT = 480;

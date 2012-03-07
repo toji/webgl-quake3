@@ -1,4 +1,4 @@
-/* 
+/*
  * q3shader.js - Parses Quake 3 shader files (.shader)
  */
  
@@ -39,28 +39,28 @@ shaderTokenizer = function(src) {
 };
 
 shaderTokenizer.prototype.EOF = function() {
-    if(this.tokens == null) { return true; }
+    if(this.tokens === null) { return true; }
     var token = this.tokens[this.offset];
-    while(token == '' && this.offset < this.tokens.length) {
-        this.offset++
+    while(token === '' && this.offset < this.tokens.length) {
+        this.offset++;
         token = this.tokens[this.offset];
     }
-    return this.offset >= this.tokens.length; 
+    return this.offset >= this.tokens.length;
 };
 
 shaderTokenizer.prototype.next = function() {
-    if(this.tokens == null) { return ; }
+    if(this.tokens === null) { return ; }
     var token = '';
-    while(token == '' && this.offset < this.tokens.length) {
+    while(token === '' && this.offset < this.tokens.length) {
         token = this.tokens[this.offset++];
     }
     return token;
 };
 
 shaderTokenizer.prototype.prev = function() {
-    if(this.tokens == null) { return ; }
+    if(this.tokens === null) { return ; }
     var token = '';
-    while(token == '' && this.offset >= 0) {
+    while(token === '' && this.offset >= 0) {
         token = this.tokens[this.offset--];
     }
     return token;
@@ -93,7 +93,7 @@ q3shader.load = function(url, onload) {
 };
 
 q3shader.parse = function(url, src, onload) {
-    var shaders = new Array();
+    var shaders = [];
     
     var tokens = new shaderTokenizer(src);
     
@@ -120,8 +120,8 @@ q3shader.parse = function(url, src, onload) {
 
 q3shader.parseShader = function(name, tokens) {
     var brace = tokens.next();
-    if(brace != '{') { 
-        return null; 
+    if(brace != '{') {
+        return null;
     }
     
     var shader = {
@@ -152,14 +152,14 @@ q3shader.parseShader = function(name, tokens) {
                     stage.blendDest = 'GL_ZERO';
                 }
                 
-                // I'm having a ton of trouble getting lightingSpecular to work properly, 
+                // I'm having a ton of trouble getting lightingSpecular to work properly,
                 // so this little hack gets it looking right till I can figure out the problem
                 if(stage.alphaGen == 'lightingspecular') {
                     stage.blendSrc = 'GL_ONE';
                     stage.blendDest = 'GL_ZERO';
                     stage.hasBlendFunc = false;
                     stage.depthWrite = true;
-                    shader.stages = new Array();
+                    shader.stages = [];
                 }
                 
                 if(stage.hasBlendFunc) { shader.blend = true; } else { shader.opaque = true; }

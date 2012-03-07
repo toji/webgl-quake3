@@ -1,4 +1,4 @@
-/* 
+/*
  * q3movement.js - Handles player movement through a bsp structure
  */
  
@@ -73,7 +73,7 @@ q3movement.prototype.applyFriction = function() {
     if (newSpeed < 0) {
         newSpeed = 0;
     }
-    if(speed != 0) {
+    if(speed !== 0) {
         newSpeed /= speed;
         vec3.scale(this.velocity, newSpeed);
     } else {
@@ -187,7 +187,7 @@ q3movement.prototype.walkMove = function(dir) {
 q3movement.prototype.slideMove = function(gravity) {
     var bumpcount;
     var numbumps = 4;
-    var planes = new Array();
+    var planes = [];
     var endVelocity = [0,0,0];
     
     if ( gravity ) {
@@ -297,14 +297,14 @@ q3movement.prototype.slideMove = function(gravity) {
         vec3.set( endVelocity, this.velocity );
     }
 
-    return ( bumpcount != 0 );
+    return ( bumpcount !== 0 );
 };
 
 q3movement.prototype.stepSlideMove = function(gravity) {
     var start_o = vec3.set(this.position, [0,0,0]);
     var start_v = vec3.set(this.velocity, [0,0,0]);
     
-    if ( this.slideMove( gravity ) == 0 ) { return; } // we got exactly where we wanted to go first try
+    if ( this.slideMove( gravity ) === 0 ) { return; } // we got exactly where we wanted to go first try
 
     var down = vec3.set(start_o, [0,0,0]);
     down[2] -= q3movement_stepsize;

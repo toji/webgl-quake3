@@ -1,4 +1,4 @@
-/* 
+/*
  * q3glshader.js - Transforms a parsed Q3 shader definition into a set of WebGL compatible states
  */
  
