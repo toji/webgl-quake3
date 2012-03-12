@@ -1,0 +1,8 @@
+{
+    "name": "webgl-quake3-export",
+    "version": "0.1",
+    "description": "Exports Quake 3 BSP files into a WebGL-friendly format",
+    "scripts": {
+        "start": "node export.js"
+    }
+}
