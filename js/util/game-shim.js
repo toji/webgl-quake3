@@ -1,7 +1,7 @@
 /**
  * @fileoverview game-shim - Shims to normalize gaming-related APIs to their respective specs
  * @author Brandon Jones
- * @version 0.1
+ * @version 0.2
  */
 
 /*
@@ -31,6 +31,7 @@
     "use strict";
 
     var elementPrototype = (global.HTMLElement || global.Element)["prototype"];
+    var getter;
     
     //=====================
     // Animation
@@ -40,26 +41,32 @@
     // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
     (function() {
         var lastTime = 0;
-        var vendors = ['ms', 'moz', 'webkit', 'o'];
-        for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+        var vendors = ['webkit', 'moz', 'ms', 'o'];
+        var x;
+
+        for(x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
             window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
-            window.cancelRequestAnimationFrame = window[vendors[x]+
-              'CancelRequestAnimationFrame'];
         }
 
+        window.cancelAnimationFrame = window.cancelAnimationFrame || window.cancelRequestAnimationFrame; // Check for older syntax
+        for(x = 0; x < vendors.length && !window.cancelAnimationFrame; ++x) {
+            window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame'] || window[vendors[x]+'CancelRequestAnimationFrame'];
+        }
+
+        // Manual fallbacks
         if (!window.requestAnimationFrame) {
             window.requestAnimationFrame = function(callback, element) {
                 var currTime = new Date().getTime();
                 var timeToCall = Math.max(0, 16 - (currTime - lastTime));
-                var id = window.setTimeout(function() { callback(timeToCall); }, 
+                var id = window.setTimeout(function() { callback(timeToCall); },
                   timeToCall);
                 lastTime = currTime + timeToCall;
                 return id;
             };
         }
 
-        if (!window.cancelRequestAnimationFrame) {
-            window.cancelRequestAnimationFrame = function(id) {
+        if (!window.cancelAnimationFrame) {
+            window.cancelAnimationFrame = function(id) {
                 clearTimeout(id);
             };
         }
@@ -67,7 +74,7 @@
     
     // window.animationStartTime
     if(!window.animationStartTime) {
-        window.animationStartTime = window.webkitAnimationStartTime || 
+        window.animationStartTime = window.webkitAnimationStartTime ||
         window.mozAnimationStartTime ||
         new Date().getTime();
     }
@@ -78,36 +85,36 @@
     
     // document.isFullScreen
     if(!document.hasOwnProperty("fullscreenEnabled")) {
-        var getter = (function() {
+        getter = (function() {
             // These are the functions that match the spec, and should be preferred
             if("webkitIsFullScreen" in document) {
-                return function() { return document.webkitIsFullScreen; }
+                return function() { return document.webkitIsFullScreen; };
             }
             if("mozFullScreen" in document) {
-                return function() { return document.mozFullScreen; }
+                return function() { return document.mozFullScreen; };
             }
-            return function() { return false }; // not supported, never fullscreen
+            return function() { return false; }; // not supported, never fullscreen
         })();
         
-        Object.defineProperty(document, "fullscreenEnabled", { 
+        Object.defineProperty(document, "fullscreenEnabled", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
     }
     
     if(!document.hasOwnProperty("fullscreenElement")) {
-        var getter = (function() {
+        getter = (function() {
             // These are the functions that match the spec, and should be preferred
             if("webkitFullscreenElement" in document) {
-                return function() { return document.webkitFullscreenElement; }
+                return function() { return document.webkitFullscreenElement; };
             }
             if("mozFullscreenElement" in document) {
-                return function() { return document.mozFullscreenElement; }
+                return function() { return document.mozFullscreenElement; };
             }
-            return function() { return null }; // not supported
+            return function() { return null; }; // not supported
         })();
         
-        Object.defineProperty(document, "fullscreenElement", { 
+        Object.defineProperty(document, "fullscreenElement", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
@@ -139,10 +146,10 @@
             if(elementPrototype.webkitRequestFullScreen) {
                 return function() {
                     this.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
-                }
+                };
             }
             
-            return  elementPrototype.mozRequestFullScreen    || 
+            return  elementPrototype.mozRequestFullScreen ||
                     function(){ /* unsupported, fail silently */ };
         })();
     }
@@ -151,7 +158,7 @@
     if(!document.exitFullscreen) {
         document.exitFullscreen = (function() {
             return  document.webkitExitFullscreen ||
-                    document.mozExitFullscreen || 
+                    document.mozExitFullscreen ||
                     function(){ /* unsupported, fail silently */ };
         })();
     }
@@ -163,14 +170,14 @@
     var mouseEventPrototype = global.MouseEvent.prototype;
     
     if(!("movementX" in mouseEventPrototype)) {
-        Object.defineProperty(mouseEventPrototype, "movementX", { 
+        Object.defineProperty(mouseEventPrototype, "movementX", {
             enumerable: true, configurable: false, writeable: false,
             get: function() { return this.webkitMovementX || this.mozMovementX || 0; }
         });
     }
     
     if(!("movementY" in mouseEventPrototype)) {
-        Object.defineProperty(mouseEventPrototype, "movementY", { 
+        Object.defineProperty(mouseEventPrototype, "movementY", {
             enumerable: true, configurable: false, writeable: false,
             get: function() { return this.webkitMovementY || this.mozMovementY || 0; }
         });
@@ -184,51 +191,51 @@
     
     // document.pointerLockEnabled
     if(!document.hasOwnProperty("pointerLockEnabled")) {
-        var getter = (function() {
+        getter = (function() {
             // These are the functions that match the spec, and should be preferred
             if("webkitPointerLockEnabled" in document) {
-                return function() { return document.webkitPointerLockEnabled; }
+                return function() { return document.webkitPointerLockEnabled; };
             }
             if("mozPointerLockEnabled" in document) {
-                return function() { return document.mozPointerLockEnabled; }
+                return function() { return document.mozPointerLockEnabled; };
             }
     
             // Early versions of the spec managed mouselock through the pointer object
             if(navigator.pointer) {
                 if(typeof(navigator.pointer.isLocked) === "boolean") {
                     // Chrome initially launched with this interface
-                    return function() { return navigator.pointer.isLocked; }
+                    return function() { return navigator.pointer.isLocked; };
                 } else if(typeof(navigator.pointer.isLocked) === "function") {
                     // Some older builds might provide isLocked as a function
-                    return function() { return navigator.pointer.isLocked(); }
+                    return function() { return navigator.pointer.isLocked(); };
                 } else if(typeof(navigator.pointer.islocked) === "function") {
                     // For compatibility with early Firefox build
-                    return function() { return navigator.pointer.islocked(); }
+                    return function() { return navigator.pointer.islocked(); };
                 }
             }
-            return function() { return false }; // not supported, never locked
+            return function() { return false; }; // not supported, never locked
         })();
         
-        Object.defineProperty(document, "pointerLockEnabled", { 
+        Object.defineProperty(document, "pointerLockEnabled", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
     }
     
     if(!document.hasOwnProperty("pointerLockElement")) {
-        var getter = (function() {
+        getter = (function() {
             // These are the functions that match the spec, and should be preferred
             if("webkitPointerLockElement" in document) {
-                return function() { return document.webkitPointerLockElement; }
+                return function() { return document.webkitPointerLockElement; };
             }
             if("mozPointerLockElement" in document) {
-                return function() { return document.mozPointerLockElement; }
+                return function() { return document.mozPointerLockElement; };
             }
             
-            return function() { return null }; // not supported
+            return function() { return null; }; // not supported
         })();
         
-        Object.defineProperty(document, "pointerLockElement", { 
+        Object.defineProperty(document, "pointerLockElement", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
@@ -237,12 +244,12 @@
     // element.requestPointerLock
     if(!elementPrototype.requestPointerLock) {
         elementPrototype.requestPointerLock = (function() {
-            return  elementPrototype.webkitRequestPointerLock || 
-                    elementPrototype.mozRequestPointerLock    || 
+            return  elementPrototype.webkitRequestPointerLock ||
+                    elementPrototype.mozRequestPointerLock    ||
                     function(){
-                        if(navigator.pointer) { 
+                        if(navigator.pointer) {
                             var elem = this;
-                            navigator.pointer.lock(elem); 
+                            navigator.pointer.lock(elem);
                         }
                     };
         })();
@@ -252,11 +259,11 @@
     if(!document.exitPointerLock) {
         document.exitPointerLock = (function() {
             return  document.webkitExitPointerLock ||
-                    document.mozExitPointerLock || 
+                    document.mozExitPointerLock ||
                     function(){
-                        if(navigator.pointer) { 
+                        if(navigator.pointer) {
                             var elem = this;
-                            navigator.pointer.unlock(); 
+                            navigator.pointer.unlock();
                         }
                     };
         })();
@@ -267,20 +274,20 @@
     //=====================
     
     if(!navigator.gamepads) {
-        var getter = (function() {
+        getter = (function() {
             // These are the functions that match the spec, and should be preferred
             if("webkitGamepads" in navigator) {
-                return function() { return navigator.webkitGamepads; }
+                return function() { return navigator.webkitGamepads; };
             }
             if("mozGamepads" in navigator) {
-                return function() { return navigator.mozGamepads; }
+                return function() { return navigator.mozGamepads; };
             }
             
-            var gamepads = new Array();
-            return function() { return gamepads }; // not supported, return empty array
+            var gamepads = [];
+            return function() { return gamepads; }; // not supported, return empty array
         })();
         
-        Object.defineProperty(navigator, "gamepads", { 
+        Object.defineProperty(navigator, "gamepads", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
