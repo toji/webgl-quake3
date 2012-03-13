@@ -22,35 +22,71 @@
  */
 
 var fs = require("fs");
+var Utils = require("./export-utils").Utils;
+
+console.log("Utils:", Utils);
 
 var threeJsExport = exports.threeJsExport = {};
 
 threeJsExport.toFile = function(path, data) {
+    var i, indexCount, vertexCount;
+
+    vertexCount = data.geometry.attribs.position.length;
+    indexCount = data.geometry.indices.length;
+
+    var normals = Utils.generateNormals(data.geometry.attribs.position, data.geometry.indices);
 
     var output = {
         metadata : {
             formatVersion: 3,
             generatedBy: "quake3-exporter",
-            vertices: data.geometry.attribs.position.length / 3,
-            faces: data.geometry.indices.length / 3,
+            vertices: vertexCount / 3,
+            faces: indexCount / 3,
             description: data.entities.worldspawn[0].message
         },
 
         materials: [{
             DbgColor: 16777215,
             DbgIndex: 0,
-            DbgName: "default_mat"
+            DbgName: "default_mat",
+            mapDiffuse : "no-shader.png"
         }]
     };
 
 
-    output.vertices = data.geometry.attribs.position;
+    output.vertices = []; ;
+    for(i = 0; i < vertexCount; i+=3) {
+        output.vertices.push(data.geometry.attribs.position[i+0]);
+        output.vertices.push(data.geometry.attribs.position[i+2]);
+        output.vertices.push(data.geometry.attribs.position[i+1]);
+    }
+
     output.normals = [];
+    for(i = 0; i < vertexCount; i+=3) {
+        output.normals.push(normals[i+0]);
+        output.normals.push(normals[i+2]);
+        output.normals.push(normals[i+1]);
+    }
+
     output.uvs = [data.geometry.attribs.texCoord];
     output.uvs2 = [data.geometry.attribs.lightmapCoord];
     output.colors = []; //data.geometry.attribs.colors;
     
-    output.faces = data.geometry.indices;
+    indexCount = data.geometry.indices.length;
+
+    output.faces = [];
+    for(i = 0; i < indexCount; i+=3) {
+        output.faces.push(32); // Face type mask (Triangles, Pos + Normal)
+        output.faces.push(data.geometry.indices[i+0]);
+        output.faces.push(data.geometry.indices[i+1]);
+        output.faces.push(data.geometry.indices[i+2]);
+
+        output.faces.push(data.geometry.indices[i+0]);
+        output.faces.push(data.geometry.indices[i+1]);
+        output.faces.push(data.geometry.indices[i+2]);
+    }
+
+    
 
     fs.writeFile(path, JSON.stringify(output, null, "\t"), function (err) {
         if (err) throw err;

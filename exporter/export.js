@@ -24,7 +24,6 @@
 var q3bspParser = require("./q3bsp-parser").q3bspParser;
 var threeJsExport = require("./threejs-export").threeJsExport;
 
-
 var path = process.argv[2];
 
 if(!path) {
