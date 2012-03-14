@@ -23,7 +23,9 @@
 
 var fs = require("fs");
 var BinaryFile = require("./util/binary-file").BinaryFile;
+var Utils = require("./export-utils").Utils;
 var glMatrix = require("./util/gl-matrix-min");
+
 //var Canvas = require("canvas");
 
 postMessage = function(msg) {
@@ -85,7 +87,7 @@ q3bspParser.parse = function(data, tesselationLevel, callback) {
         callback({
             entities: entities,
             geometry: geometry,
-            //shaders: shaders
+            materials: shaders
         });
     }
     
@@ -196,10 +198,7 @@ q3bspParser.readShaders = function(lump, src) {
             flags: src.readLong(),
             contents: src.readLong(),
             shader: null,
-            faces: [],
-            indexOffset: 0,
-            elementCount: 0,
-            visible: true
+            faces: []
         };
         
         elements.push(shader);
@@ -355,7 +354,7 @@ q3bspParser.readVerts = function(lump, src) {
             lmCoord: [ src.readFloat(), src.readFloat() ],
             lmNewCoord: [ 0, 0 ],
             normal: [ src.readFloat(), src.readFloat(), src.readFloat() ],
-            color: q3bspParser.brightnessAdjustVertex(q3bspParser.colorToVec(src.readULong()), 4.0)
+            color: q3bspParser.brightnessAdjustVertex(Utils.colorToVec(src.readULong()), 4.0)
         });
     }
 
@@ -540,24 +539,6 @@ q3bspParser.readVisData = function(lump, src) {
     };
 };
 
-q3bspParser.colorToVec = function(color) {
-    return[
-        (color & 0xFF) / 0xFF,
-        ((color & 0xFF00) >> 8) / 0xFF,
-        ((color & 0xFF0000) >> 16) / 0xFF,
-        1
-    ];
-};
-
-q3bspParser.vecToColor = function(vec) {
-    return (
-        Math.floor(vec[0] * 0xFF) +
-        Math.floor(vec[1] * 0xFF) << 8 +
-        Math.floor(vec[2] * 0xFF) << 16 +
-        Math.floor(vec[3] * 0xFF) << 24
-    );
-};
-
 //
 // Compile the map into a stream of WebGL-compatible data
 //
@@ -631,16 +612,21 @@ q3bspParser.compileGeometry = function(verts, faces, meshVerts, lightmaps, shade
         attribs.normal[i * 3 + 1] = vert.normal[1];
         attribs.normal[i * 3 + 2] = vert.normal[2];
 
-        attribs.color[i] = q3bspParser.vecToColor(vert.color);
+        attribs.color[i] = Utils.vecToColor(vert.color);
     }
     
     // Compile index list
     var indices = [],
-        meshes = [];
+        meshes = [],
+        mesh;
     for(i = 0; i <  shaders.length; ++i) {
         shader = shaders[i];
         if(shader.faces.length > 0) {
-            shader.indexOffset = indices.length * 2; // Offset is in bytes
+            mesh = {
+                material: i,
+                firstIndex: indices.length,
+                indexCount: 0
+            };
             
             for(j = 0; j < shader.faces.length; ++j) {
                 face = shader.faces[j];
@@ -648,13 +634,10 @@ q3bspParser.compileGeometry = function(verts, faces, meshVerts, lightmaps, shade
                 for(var k = 0; k < face.meshVertCount; ++k) {
                     indices.push(face.vertex + meshVerts[face.meshVert + k]);
                 }
-                shader.elementCount += face.meshVertCount;
+                mesh.indexCount += face.meshVertCount;
             }
 
-            meshes.push({
-                indexOffset: shader.indexOffset,
-                elementCount: shader.elementCount
-            });
+            meshes.push(mesh);
         }
         delete shader.faces; // Don't need to send this to the render thread.
     }

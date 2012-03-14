@@ -87,3 +87,21 @@ Utils.generateNormals = function(positions, indices) {
 
     return normAttrib;
 };
+
+Utils.colorToVec = function(color) {
+    return[
+        (color & 0xFF) / 0xFF,
+        ((color & 0xFF00) >> 8) / 0xFF,
+        ((color & 0xFF0000) >> 16) / 0xFF,
+        1
+    ];
+};
+
+Utils.vecToColor = function(vec) {
+    return (
+        Math.floor(vec[0] * 0xFF) +
+        Math.floor(vec[1] * 0xFF) << 8 +
+        Math.floor(vec[2] * 0xFF) << 16 +
+        Math.floor(vec[3] * 0xFF) << 24
+    );
+};
