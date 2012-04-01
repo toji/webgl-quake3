@@ -105,3 +105,40 @@ Utils.vecToColor = function(vec) {
         Math.floor(vec[3] * 0xFF) << 24
     );
 };
+
+Utils.getVertexSource = function(shader, options) {
+    var i, src = "";
+
+    if(options.attrib !== false) {
+        for(i in shader.attribs) {
+            if(shader.attribs[i])
+                src += "attribute " + shader.attribs[i] + " " + i + ";\n";
+        }
+    }
+
+    if(options.uniform !== false) {
+        for(i in shader.uniforms) {
+            if(shader.uniforms[i])
+                src += "uniform " + shader.uniforms[i].type + " " + i + ";\n";
+        }
+    }
+
+    return src + shader.vertexShader;
+};
+
+Utils.getFragmentSource = function(shader, options) {
+    var i, src = "";
+
+    if(options.precision !== false) {
+        src += "precision highp float;\n";
+    }
+
+    if(options.uniforms !== false) {
+        for(i in shader.uniforms) {
+            if(shader.uniforms[i])
+                src += "uniform " + shader.uniforms[i].type + " " + i + ";\n";
+        }
+    }
+
+    return src + shader.fragmentShader;
+};

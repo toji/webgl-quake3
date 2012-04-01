@@ -26,26 +26,7 @@ var BinaryFile = require("./util/binary-file").BinaryFile;
 var Utils = require("./export-utils").Utils;
 var glMatrix = require("./util/gl-matrix-min");
 
-//var Canvas = require("canvas");
-
-postMessage = function(msg) {
-    console.log("MESSAGE POST:", msg.type);
-};
-
-onmessage = function(msg) {
-    switch(msg.data.type) {
-        case 'load':
-            q3bspParser.load(msg.data.url, msg.data.tesselationLevel, function() {
-                // Fallback to account for Opera handling URLs in a worker
-                // differently than other browsers.
-                q3bspParser.load("../" + msg.data.url, msg.data.tesselationLevel);
-            });
-            break;
-        case 'loadShaders':
-            q3shader.loadList(msg.data.sources);
-            break;
-    }
-};
+var Canvas = require("canvas");
 
 // BSP Elements
 var planes, nodes, leaves, faces;
@@ -310,11 +291,11 @@ q3bspParser.buildLightmapTexture = function(textureSize, lightmaps) {
     // For the moment our ability to do image manipulation in node is...
     // limited, to say the least. I would love it if the below code worked
     // but it segfaults on putImageData. Poo.
-    return;
+    //return;
 
     var canvas = new Canvas(textureSize, textureSize),
         ctx = canvas.getContext('2d'),
-        path = __dirname + '/lightmap.png',
+        path = __dirname + '/../demo_baseq3/lightmap.png',
         i, j, lightmap, imageData;
 
     // Copy all lightmaps into the image
