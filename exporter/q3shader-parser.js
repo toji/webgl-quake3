@@ -105,6 +105,8 @@ q3shaderParser.parse = function(url, src, onload) {
 
                 if(shader.blend) {
                     material.blend = shader.blend;
+                    material.blendSrc = shader.blendSrc;
+                    material.blendDest = shader.blendDest;
                 }
 
                 var builder = q3shaderParser.buildShader(shader);

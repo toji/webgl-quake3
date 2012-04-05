@@ -44,6 +44,8 @@
             
         </div>
 
+        <script src="js/ammo.js"></script>
+
         <script src="../three.js/build/Three.js"></script>
 
         <script src="../three.js/examples/js/Detector.js"></script>
@@ -70,18 +72,13 @@
 
             var timeUniform = { type: "f", value: 1.0 };
 
+            var dynamicsWorld;
+            var bulletMaterials;
+
+            var physicsMeshCallbacks = [];
+
             init();
             animate();
-
-            function loadTexture( path ) {
-                var image = new Image();
-                image.onload = function () { texture.needsUpdate = true; };
-                image.src = path;
-
-                var texture  = new THREE.Texture( image, new THREE.UVMapping(), THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.LinearFilter, THREE.LinearMipMapLinearFilter );
-
-                return new THREE.MeshLambertMaterial( { map: texture, ambient: 0x222222 } );
-            }
 
             function init() {
 
@@ -98,12 +95,7 @@
                 controls.movementSpeed = 1000;
                 controls.lookSpeed = 0.125;
                 controls.lookVertical = true;
-                controls.constrainVertical = true;
-                controls.verticalMin = 1.1;
-                controls.verticalMax = 2.2;
-
-                //var debugMaterial = loadTexture("demo_baseq3/debug.png");
-
+                
                 var loader = new THREE.JSONLoader();
                 loader.load( "exporter/output.js", function( geometry ) {
                     initMaterials("exporter/material-output.js", function(materials) {
@@ -112,6 +104,11 @@
                         scene.add( mesh );
                     });
                 });
+
+                bulletMaterials = [
+                    new THREE.MeshLambertMaterial( { ambient: 0xbbbbbb, map: THREE.ImageUtils.loadTexture( 'demo_baseq3/textures/sfx/metalbridge06_bounce.png' ) } ),
+                    new THREE.MeshBasicMaterial( { color: 0xffffff, wireframe: true, transparent: true, opacity: 0.1 } )
+                ];
 
                 var ambientLight = new THREE.AmbientLight( 0x222222 );
                 scene.add( ambientLight );
@@ -132,6 +129,7 @@
                 stats.domElement.style.top = '0px';
                 container.appendChild( stats.domElement );
 
+                initPhysics(scene);
             }
 
             function initMaterials(url, callback) {
@@ -191,6 +189,82 @@
                 });
             }
 
+            function initPhysics(scene) {
+                var collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
+                var dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
+                var overlappingPairCache = new Ammo.btDbvtBroadphase();
+                var solver = new Ammo.btSequentialImpulseConstraintSolver();
+                dynamicsWorld = new Ammo.btDiscreteDynamicsWorld(dispatcher, overlappingPairCache, solver, collisionConfiguration);
+                dynamicsWorld.setGravity(new Ammo.btVector3(0, -100, 0));
+
+                initGround();
+            }
+
+            function initGround() {
+                var shape = new Ammo.btBoxShape(new Ammo.btVector3(1000, 100, 1000));
+                var transform = new Ammo.btTransform();
+                transform.setIdentity();
+                transform.setOrigin(new Ammo.btVector3(0, -100, 0));
+
+                var mass = 0;
+                var localInertia = new Ammo.btVector3(0, 0, 0);
+                var motionState = new Ammo.btDefaultMotionState(transform);
+                var rigidBodyInfo = new Ammo.btRigidBodyConstructionInfo(0, motionState, shape, localInertia);
+                var body = new Ammo.btRigidBody(rigidBodyInfo);
+                dynamicsWorld.addRigidBody(body);
+            }
+
+            function addBox() {
+                var pos = camera.position;
+                var rot = camera.rotation;
+
+                var shape = new Ammo.btBoxShape(new Ammo.btVector3(5, 5, 5));
+                var transform = new Ammo.btTransform();
+                transform.setIdentity();
+                transform.setOrigin(new Ammo.btVector3(pos.x, pos.y, pos.z));
+
+                var mass = 1;
+                var localInertia = new Ammo.btVector3(0, 0, 0);
+                shape.calculateLocalInertia(mass, localInertia);
+
+                var motionState = new Ammo.btDefaultMotionState(transform);
+                var rigidBodyInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, shape, localInertia);
+                var body = new Ammo.btRigidBody(rigidBodyInfo);
+                dynamicsWorld.addRigidBody(body);
+
+                body.activate();
+
+                var object = THREE.SceneUtils.createMultiMaterialObject( new THREE.CubeGeometry( 10, 10, 10, 1, 1, 1 ), bulletMaterials );
+                object.position.set(pos.x, pos.y, pos.z);
+                object.useQuaternion = true;
+                scene.add(object);
+
+                physicsMeshCallbacks.push(function() {
+                    body.getMotionState().getWorldTransform(transform);
+
+                    var origin = transform.getOrigin();
+                    object.position.set(origin.x(), origin.y(), origin.z());
+
+                    var rotation = transform.getRotation();
+                    object.quaternion.set(rotation.x(), rotation.y(), rotation.z(), rotation.w());
+                });
+
+                return body;
+            }
+
+            document.addEventListener("keydown", function(event) {
+                if(event.keyCode == 32) {
+                    addBox();
+                }
+            }, false);
+
+            function updatePhysicsMeshes() {
+                var i;
+                for(i in physicsMeshCallbacks) {
+                    physicsMeshCallbacks[i]();
+                }
+            }
+
             function animate() {
                 requestAnimationFrame( animate );
 
@@ -198,9 +272,12 @@
                 stats.update();
             }
 
-            function render() {
+            function render(delta) {
                 var delta = clock.getDelta();
                 timeUniform.value += delta;
+
+                dynamicsWorld.stepSimulation(delta, 2);
+                updatePhysicsMeshes();
 
                 controls.update( delta );
                 renderer.render( scene, camera );

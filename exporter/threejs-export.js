@@ -85,18 +85,7 @@ threeJsExport.toFile = function(path, shaders, data) {
     };
 
     var material;
-    output.materials = [];
-    for(i = 0; i < data.materials.length; ++i) {
-        material = data.materials[i];
-
-        output.materials.push({
-            DbgColor: 16777215,
-            DbgIndex: i,
-            DbgName: material.shaderName,
-            colorDiffuse: [Math.random(), Math.random(), Math.random()]
-            //mapDiffuse : "no-shader.png"
-        });
-    }
+    output.materials = []; // We just need a stub material array here so parsing doesn't fail.
 
     // We need to swizzle the Y and Z components, since Quake 3 uses a Z-up space
     output.vertices = [];
@@ -241,6 +230,7 @@ threeJsExport.materialToThreeJs = function(material) {
         fragmentShader: fragmentShader
     };
 
+    if(material.cull) { threeMaterial.cull = material.cull; }
     if(material.blend) { threeMaterial.transparent = true; }
 
     return threeMaterial;
