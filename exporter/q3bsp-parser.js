@@ -64,11 +64,18 @@ q3bspParser.parse = function(data, tesselationLevel, callback) {
     
     var geometry = q3bspParser.compileGeometry(verts, faces, meshVerts, lightmaps, shaders, tesselationLevel);
 
+    var planes = q3bspParser.readPlanes(header.lumps[2], src);
+    var brushes = q3bspParser.readBrushes(header.lumps[8], src);
+    var brushSides = q3bspParser.readBrushSides(header.lumps[9], src);
+
+    var collisionHulls = q3bspParser.compileCollisionHulls(planes, brushes, brushSides, shaders);
+
     if(callback) {
         callback({
             entities: entities,
             geometry: geometry,
-            materials: shaders
+            materials: shaders,
+            collisionHulls: collisionHulls
         });
     }
     
@@ -772,6 +779,84 @@ q3bspParser.tesselate = function(face, verts, meshVerts, level) {
     
         }
     }
+};
+
+q3bspParser.getPlaneIntersectionPoint = function(p1, p2, p3) {
+    var a = [0, 0, 0];
+    vec3.cross(p2.normal, p3.normal, a);
+    var den = vec3.dot(p1.normal, a);
+
+    if(den === 0) {
+        return null; // No intersection point
+    }
+
+    var b = [0, 0, 0];
+
+    vec3.scale(a, p1.distance, b);
+
+    vec3.cross(p3.normal, p1.normal, a);
+    vec3.scale(a, p2.distance, a);
+    vec3.add(b, a, b);
+
+    vec3.cross(p1.normal, p2.normal, a);
+    vec3.scale(a, p3.distance, a);
+    vec3.add(b, a, b);
+
+    vec3.scale(b, 1/den, b);
+
+    return b;
+};
+
+q3bspParser.pointInBrush = function(brush, brushSides, planes, point) {
+    var brushSide, plane, dist;
+    
+    for (var i = 0; i < brush.brushSideCount; i++) {
+        brushSide = brushSides[brush.brushSide + i];
+        plane = planes[brushSide.plane];
+        dist = vec3.dot( point, plane.normal ) - plane.distance;
+        if (dist > 0.01) return false; // Give it a reasonable margin of error
+    }
+    
+    return true;
+};
+
+q3bspParser.compileCollisionHulls = function(planes, brushes, brushSides, shaders) {
+    var i, j, k, b, brush, shader, p1, p2, p3;
+
+    var collisionHulls = [];
+    var pointCloud;
+    var point;
+
+    for(b in brushes) {
+        brush = brushes[b];
+        shader = shaders[brush.shader];
+            
+        if (shader && brush.brushSideCount > 0 && (shader.contents & 1)) {
+            pointCloud = [];
+
+            for (i = 0; i < brush.brushSideCount; i++) {
+                p1 = planes[brushSides[brush.brushSide + i].plane];
+
+                for (j = i+1; j < brush.brushSideCount; j++) {
+                    p2 = planes[brushSides[brush.brushSide + j].plane];
+
+                    for (k = j+1; k < brush.brushSideCount; k++) {
+                        p3 = planes[brushSides[brush.brushSide + k].plane];
+
+                        point = q3bspParser.getPlaneIntersectionPoint(p1, p2, p3);
+
+                        if(point && q3bspParser.pointInBrush(brush, brushSides, planes, point)) {
+                            pointCloud.push(point[0], point[1], point[2]);
+                        }
+                    }
+                }
+            }
+
+            collisionHulls.push(pointCloud);
+        }
+    }
+
+    return collisionHulls;
 };
 
 //
