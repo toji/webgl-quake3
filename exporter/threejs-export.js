@@ -154,12 +154,30 @@ threeJsExport.toFile = function(path, shaders, data) {
         }
     }
 
-    fs.writeFile(path, JSON.stringify(output, null, "\t"), function (err) {
+    fs.writeFile(path, JSON.stringify(output), function (err) {
         if (err) throw err;
         console.log('Mesh Exported');
     });
 
-    fs.writeFile("collision.json", JSON.stringify(data.collisionHulls, null, "\t"), function (err) {
+    threeJsExport.collisionHullsToFile("collision.js", data.collisionHulls);
+};
+
+threeJsExport.collisionHullsToFile = function(path, hulls) {
+    var i, j, hull, hullOutput;
+    var output = [];
+
+    for(i in hulls) {
+        hull = hulls[i];
+        hullOutput = [];
+
+        for(j = 0; j < hull.length; j+=3) {
+            hullOutput.push(hull[j], hull[j+2], -hull[j+1]);
+        }
+
+        output.push(hullOutput);
+    }
+
+    fs.writeFile(path, JSON.stringify(output), function (err) {
         if (err) throw err;
         console.log('Collision Hulls Exported');
     });

@@ -134,7 +134,7 @@
                 stats.domElement.style.top = '0px';
                 container.appendChild( stats.domElement );
 
-                initPhysics("exporter/collision.json");
+                initPhysics("exporter/collision.js");
             }
 
             function initMaterials(url, callback) {
@@ -219,28 +219,29 @@
 
             function buildCollisionHulls(hulls) {
                 var i, j, hull;
+
+                var levelShape = new Ammo.btCompoundShape();
+
+                var transform = new Ammo.btTransform();
+                transform.setIdentity();
+
                 for(i in hulls) {
                     hull = hulls[i];
                     var shape = new Ammo.btConvexHullShape();
                     for(j = 0; j < hull.length; j+=3) {
-                        shape.addPoint(new Ammo.btVector3(hull[j], hull[j+2], -hull[j+1]));
-
-                        /*var object = THREE.SceneUtils.createMultiMaterialObject( new THREE.CubeGeometry( 2, 2, 2, 1, 1, 1 ), nodeMaterials );
-                        object.position.set( hull[j], hull[j+2], -hull[j+1] );
-                        scene.add( object );*/
+                        shape.addPoint(new Ammo.btVector3(hull[j], hull[j+1], hull[j+2]));
                     }
 
-                    var transform = new Ammo.btTransform();
-                    transform.setIdentity();
-
-                    var mass = 0;
-                    var localInertia = new Ammo.btVector3(0, 0, 0);
-                    var motionState = new Ammo.btDefaultMotionState(transform);
-                    var rigidBodyInfo = new Ammo.btRigidBodyConstructionInfo(0, motionState, shape, localInertia);
-                    var body = new Ammo.btRigidBody(rigidBodyInfo);
-
-                    dynamicsWorld.addRigidBody(body);
+                    levelShape.addChildShape(transform, shape);
                 }
+                
+                var mass = 0;
+                var localInertia = new Ammo.btVector3(0, 0, 0);
+                var motionState = new Ammo.btDefaultMotionState(transform);
+                var rigidBodyInfo = new Ammo.btRigidBodyConstructionInfo(0, motionState, levelShape, localInertia);
+                var body = new Ammo.btRigidBody(rigidBodyInfo);
+
+                dynamicsWorld.addRigidBody(body);
             }
 
             function initGround() {
