@@ -11,7 +11,6 @@
                 font-size:13px;
                 text-align:center;
 
-                /* background-color: #bfd1e5; */
                 background-color: #ffffff;
                 margin: 0px;
                 overflow: hidden;
@@ -24,25 +23,11 @@
                 top: 0px; width: 100%;
                 padding: 5px;
             }
-
-            #oldie {
-                background:rgb(100,0,0) !important;
-                color:#fff !important;
-                margin-top:10em !important;
-            }
-            #oldie a { color:#fff }
-
-
-            button { border:0; background:rgba(0,0,0,0.5); color:orange; cursor:pointer }
-            button:hover { color:gold }
         </style>
     </head>
     <body>
 
         <div id="container"><br /><br /><br /><br /><br />Loading world...</div>
-        <div id="info">
-            
-        </div>
 
         <script src="js/ammo.js"></script>
 
@@ -201,8 +186,6 @@
                 var solver = new Ammo.btSequentialImpulseConstraintSolver();
                 dynamicsWorld = new Ammo.btDiscreteDynamicsWorld(dispatcher, overlappingPairCache, solver, collisionConfiguration);
                 dynamicsWorld.setGravity(new Ammo.btVector3(0, -100, 0));
-
-
                 var request = new XMLHttpRequest();
                 
                 request.addEventListener("load", function () {
@@ -213,8 +196,6 @@
                 request.open('GET', url, true);
                 request.setRequestHeader('Content-Type', 'text/json');
                 request.send(null);
-
-                //initGround();
             }
 
             function buildCollisionHulls(hulls) {
@@ -267,7 +248,7 @@
 
                 pos.negate();
                 var dir = pos.addSelf(controls.target);
-                dir.multiplyScalar(100); // speed of launch
+                dir.multiplyScalar(200); // speed of launch
                 body.applyCentralForce(new Ammo.btVector3(dir.x, dir.y, dir.z));
 
                 var object = THREE.SceneUtils.createMultiMaterialObject( new THREE.CubeGeometry( 10, 10, 10, 1, 1, 1 ), bulletMaterials );
