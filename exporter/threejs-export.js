@@ -158,11 +158,10 @@ threeJsExport.toFile = function(path, shaders, data) {
         if (err) throw err;
         console.log('Mesh Exported');
     });
-
-    threeJsExport.collisionHullsToFile("collision.js", data.collisionHulls);
 };
 
-threeJsExport.collisionHullsToFile = function(path, hulls) {
+threeJsExport.collisionHullsToFile = function(path, data) {
+    var hulls = data.collisionHulls;
     var i, j, hull, hullOutput;
     var output = [];
 

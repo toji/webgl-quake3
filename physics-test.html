@@ -31,10 +31,9 @@
 
         <script src="js/ammo.js"></script>
 
-        <script src="../three.js/build/Three.js"></script>
-
-        <script src="../three.js/examples/js/Detector.js"></script>
-        <script src="../three.js/examples/js/Stats.js"></script>
+        <script src="js/threejs/Three.js"></script>
+        <script src="js/threejs/Detector.js"></script>
+        <script src="js/threejs/Stats.js"></script>
 
         <script>
 
@@ -59,7 +58,6 @@
 
             var dynamicsWorld;
             var bulletMaterials;
-            var nodeMaterials;
 
             var physicsMeshCallbacks = [];
 
@@ -81,24 +79,6 @@
                 controls.movementSpeed = 500;
                 controls.lookSpeed = 0.125;
                 controls.lookVertical = true;
-                
-                var loader = new THREE.JSONLoader();
-                loader.load( "exporter/output.js", function( geometry ) {
-                    initMaterials("exporter/material-output.js", function(materials) {
-                        geometry.materials = materials;
-                        var mesh = new THREE.Mesh( geometry, new THREE.MeshFaceMaterial() );
-                        scene.add( mesh );
-                    });
-                });
-
-                bulletMaterials = [
-                    new THREE.MeshLambertMaterial( { ambient: 0xbbbbbb, map: THREE.ImageUtils.loadTexture( 'demo_baseq3/textures/sfx/metalbridge06_bounce.png' ) } ),
-                    new THREE.MeshBasicMaterial( { color: 0xffffff, wireframe: true, transparent: true, opacity: 0.1 } )
-                ];
-
-                nodeMaterials = [
-                    new THREE.MeshBasicMaterial( { color: 0x0000ff, wireframe: true } )
-                ];
 
                 var ambientLight = new THREE.AmbientLight( 0x222222 );
                 scene.add( ambientLight );
@@ -119,7 +99,22 @@
                 stats.domElement.style.top = '0px';
                 container.appendChild( stats.domElement );
 
-                initPhysics("exporter/collision.js");
+
+                bulletMaterials = [
+                    new THREE.MeshLambertMaterial( { ambient: 0xbbbbbb, map: THREE.ImageUtils.loadTexture( 'demo_baseq3/textures/sfx/metalbridge06_bounce.png' ) } ),
+                    new THREE.MeshBasicMaterial( { color: 0xffffff, wireframe: true, transparent: true, opacity: 0.1 } )
+                ];
+                
+                var loader = new THREE.JSONLoader();
+                loader.load( "export/geometry.json", function( geometry ) {
+                    initMaterials("export/materials.json", function(materials) {
+                        geometry.materials = materials;
+                        var mesh = new THREE.Mesh( geometry, new THREE.MeshFaceMaterial() );
+                        scene.add( mesh );
+                    });
+                });
+
+                initPhysics("export/collision.json");
             }
 
             function initMaterials(url, callback) {

@@ -28,21 +28,18 @@ var q3shaderParser = require("./q3shader-parser").q3shaderParser;
 var threeJsExport = require("./threejs-export").threeJsExport;
 
 var path = process.argv[2];
+var outputFolder = "../export"
 
 if(!path) {
     console.log("No BSP path provided");
 }
 
 q3shaderParser.load("../demo_baseq3/scripts/web_demo.shader", function(shaders) {
-    fs.writeFile('shaders-output.js', JSON.stringify(shaders, null, "\t"), function (err) {
-        if (err) throw err;
-        console.log('Shaders Exported');
-    });
-
     q3bspParser.load(path, 5, function(data) {
         console.log("Parse complete");
-        threeJsExport.toFile("output.js", shaders, data);
-        threeJsExport.shadersToFile("material-output.js", shaders, data);
+        threeJsExport.toFile(outputFolder + "/geometry.json", shaders, data);
+        threeJsExport.shadersToFile(outputFolder + "/materials.json", shaders, data);
+        threeJsExport.collisionHullsToFile(outputFolder + "/collision.json", data);
     });
 });
 
