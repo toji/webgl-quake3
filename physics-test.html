@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
     <head>
-        <title>Three.js Quake 3</title>
+        <title>Three.js/Ammo.js Quake 3 Physics Test</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
         <style>
@@ -105,24 +105,28 @@
                     new THREE.MeshBasicMaterial( { color: 0xffffff, wireframe: true, transparent: true, opacity: 0.1 } )
                 ];
                 
+                loadQuake3Map("export", "q3tourney2");
+            }
+
+            function loadQuake3Map(baseUrl, name) {
                 var loader = new THREE.JSONLoader();
-                loader.load( "export/geometry.json", function( geometry ) {
-                    initMaterials("export/materials.json", function(materials) {
+                loader.load(baseUrl + "/" + name + ".json", function( geometry ) {
+                    initMaterials(baseUrl + "/" + name + ".materials.json", baseUrl, function(materials) {
                         geometry.materials = materials;
                         var mesh = new THREE.Mesh( geometry, new THREE.MeshFaceMaterial() );
                         scene.add( mesh );
                     });
                 });
 
-                initPhysics("export/collision.json");
+                initPhysics(baseUrl + "/" + name + ".collision.json");
             }
 
-            function initMaterials(url, callback) {
+            function initMaterials(url, baseUrl, callback) {
                 var request = new XMLHttpRequest();
     
                 request.addEventListener("load", function () {
                     var materials = JSON.parse(request.responseText);
-                    var matList = buildMaterialList(materials);
+                    var matList = buildMaterialList(materials, baseUrl);
                     callback(matList);
                 }, false);
                 
@@ -131,17 +135,17 @@
                 request.send(null);
             }
 
-            function buildMaterialList(materials) {
+            function buildMaterialList(materials, baseUrl) {
                 var i, matList = [];
 
                 for(i in materials) {
-                    matList.push(materialToShader(materials[i]));
+                    matList.push(materialToShader(materials[i], baseUrl));
                 }
 
                 return matList;
             }
 
-            function materialToShader(material) {
+            function materialToShader(material, baseUrl) {
                 var i, uniform, src, uniforms = {};
 
                 for(i in material.uniforms) {
@@ -158,7 +162,7 @@
                             src = uniform.texture;
                         }
                         
-                        uniform.texture = THREE.ImageUtils.loadTexture( "demo_baseq3/" + src );
+                        uniform.texture = THREE.ImageUtils.loadTexture( baseUrl + "/" + src );
                         uniform.texture.wrapS = uniform.texture.wrapT = uniform.clamp ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
                     }
 
@@ -170,7 +174,8 @@
                     vertexColors: true,
                     vertexShader: material.vertexShader,
                     fragmentShader: material.fragmentShader,
-                    transparent: material.transparent ? true : false
+                    blending: THREE.NoBlending,
+                    transparent: false /*material.transparent ? true : false*/
                 });
             }
 
