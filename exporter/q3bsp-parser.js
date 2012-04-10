@@ -57,12 +57,12 @@ q3bspParser.parse = function(data, tesselationLevel, callback) {
 
     // Load visual map components
     var shaders = q3bspParser.readShaders(header.lumps[1], src);
-    var lightmaps = q3bspParser.readLightmaps(header.lumps[14], src);
+    var lightmap = q3bspParser.readLightmaps(header.lumps[14], src);
     var verts = q3bspParser.readVerts(header.lumps[10], src);
     var meshVerts = q3bspParser.readMeshVerts(header.lumps[11], src);
     var faces = q3bspParser.readFaces(header.lumps[13], src);
     
-    var geometry = q3bspParser.compileGeometry(verts, faces, meshVerts, lightmaps, shaders, tesselationLevel);
+    var geometry = q3bspParser.compileGeometry(verts, faces, meshVerts, lightmap.rects, shaders, tesselationLevel);
 
     var planes = q3bspParser.readPlanes(header.lumps[2], src);
     var brushes = q3bspParser.readBrushes(header.lumps[8], src);
@@ -75,7 +75,8 @@ q3bspParser.parse = function(data, tesselationLevel, callback) {
             entities: entities,
             geometry: geometry,
             materials: shaders,
-            collisionHulls: collisionHulls
+            collisionHulls: collisionHulls,
+            lightmapCanvas: lightmap.canvas
         });
     }
     
@@ -289,9 +290,12 @@ q3bspParser.readLightmaps = function(lump, src) {
         }
     }
 
-    var lightmapPath = q3bspParser.buildLightmapTexture(textureSize, lightmaps);
+    var canvas = q3bspParser.buildLightmapTexture(textureSize, lightmaps);
 
-    return lightmapRects;
+    return {
+        canvas: canvas,
+        rects: lightmapRects
+    };
 };
 
 q3bspParser.buildLightmapTexture = function(textureSize, lightmaps) {
@@ -317,17 +321,7 @@ q3bspParser.buildLightmapTexture = function(textureSize, lightmaps) {
         ctx.putImageData(imageData, lightmap.x, lightmap.y);
     }
 
-    
-    // Write compiled lightmap out to PNG
-    var out = fs.createWriteStream(path);
-    stream = canvas.createPNGStream();
-    stream.on('data', function(chunk){
-        out.write(chunk);
-    });
-
-    stream.on('end', function(){ console.log('Lightmap saved'); });
-
-    return path;
+    return canvas;
 };
 
 q3bspParser.readVerts = function(lump, src) {

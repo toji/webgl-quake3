@@ -70,55 +70,80 @@ shaderTokenizer.prototype.prev = function() {
 
 var q3shaderParser = exports.q3shaderParser = {};
 
-q3shaderParser.loadList = function(sources, onload) {
-    for(var i = 0; i < sources.length; ++i) {
-        q3shaderParser.load(sources[i], onload);
-    }
-};
-
 q3shaderParser.load = function(url, onload) {
     fs.readFile(url, function(err, data) {
-        q3shaderParser.parse(url, data.toString(), onload);
+        var shaders = q3shaderParser.parse(data.toString());
+        if(onload) { onload(shaders); }
     });
 };
 
-q3shaderParser.parse = function(url, src, onload) {
-    var shaders = {}, stage, material;
-    
+q3shaderParser.parseList = function(sources) {
+    var shaders = {};
+    var i;
+
+    for(i in sources) {
+        q3shaderParser.parse(sources[i].toString(), shaders);
+    }
+
+    return shaders;
+};
+
+q3shaderParser.parse = function(src, shaders) {
+    var stage, material;
     var tokens = new shaderTokenizer(src);
+
+    if(!shaders) { shaders = {}; }
     
     // Parse a shader
     while(!tokens.EOF()) {
         var name = tokens.next();
         var shader = q3shaderParser.parseShader(name, tokens);
-        if(shader) {
-            if(shader.stages) {
-
-                material = {
-                    url: url,
-                    sort: shader.sort
-                };
-
-                if(shader.cull != "back") {
-                    material.cull = shader.cull;
-                }
-
-                if(shader.blend) {
-                    material.blend = shader.blend;
-                    material.blendSrc = shader.blendSrc;
-                    material.blendDest = shader.blendDest;
-                }
-
-                var builder = q3shaderParser.buildShader(shader);
-
-                material.shader = builder.getShaderObject();
-            }
-        }
-
-        shaders[shader.name] = material;
+        shaders[shader.name] = shader;
     }
     
-    onload(shaders);
+    return shaders;
+};
+
+q3shaderParser.compileMapMaterials = function(shaders, data) {
+    var materials = {};
+
+    var i, material, shader;
+    for(i = 0; i < data.materials.length; ++i) {
+        material = data.materials[i];
+
+        shader = shaders[material.shaderName];
+        if(shader) {
+            materials[shader.shaderName] = q3shaderParser.compileShader(shader);
+        }
+    }
+
+    return materials;
+};
+
+q3shaderParser.compileShader = function(shader) {
+    var material = null;
+
+    if(shader && shader.stages) {
+        material = {
+            sort: shader.sort
+        };
+
+        if(shader.cull != "back") {
+            material.cull = shader.cull;
+        }
+
+        if(shader.blend) {
+            material.blend = shader.blend;
+            material.blendSrc = shader.blendSrc;
+            material.blendDest = shader.blendDest;
+        }
+
+        var builder = q3shaderParser.buildShader(shader);
+
+        material.shader = builder.getShaderObject();
+    }
+    
+    return material;
 };
 
 // Cleans up the parsed stage into a more compact, useful shader pass
@@ -295,7 +320,7 @@ q3shaderParser.parseStage = function(tokens) {
             case 'clampmap':
                 stage.clamp = true;
             case 'map':
-                stage.map = tokens.next().replace(/(\.jpg|\.tga)/, '.png');
+                stage.map = tokens.next().replace(/(\.jpg|\.tga)/, '');
                 break;
                 
             case 'animmap':
@@ -303,7 +328,7 @@ q3shaderParser.parseStage = function(tokens) {
                 stage.animFreq = parseFloat(tokens.next());
                 var nextMap = tokens.next();
                 while(nextMap.match(/(\.jpg|\.tga)/)) {
-                    stage.animMaps.push(nextMap.replace(/(\.jpg|\.tga)/, '.png'));
+                    stage.animMaps.push(nextMap.replace(/(\.jpg|\.tga)/, ''));
                     nextMap = tokens.next();
                 }
                 tokens.prev();

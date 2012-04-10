@@ -66,7 +66,7 @@ var MODEL_FRAGMENT = [
 
 var threeJsExport = exports.threeJsExport = {};
 
-threeJsExport.toFile = function(path, shaders, data) {
+threeJsExport.geometryToFile = function(path, shaders, data) {
     var i, j, indexCount, vertexCount, color;
 
     vertexCount = data.geometry.attribs.position.length;
@@ -182,7 +182,7 @@ threeJsExport.collisionHullsToFile = function(path, data) {
     });
 };
 
-threeJsExport.shadersToFile = function(path, shaders, data) {
+threeJsExport.materialsToFile = function(path, shaders, data, lightmapPath) {
     var i;
 
     var materials = {};
@@ -195,7 +195,7 @@ threeJsExport.shadersToFile = function(path, shaders, data) {
         if(shader) {
             materials[material.shaderName] = threeJsExport.materialToThreeJs(shader);
         } else {
-            materials[material.shaderName] = threeJsExport.defaultMaterialToThreeJs(material);
+            materials[material.shaderName] = threeJsExport.defaultMaterialToThreeJs(material, lightmapPath);
         }
     }
 
@@ -226,12 +226,7 @@ threeJsExport.materialToThreeJs = function(material) {
             case "sampler2D":
                 uniform.type = "t";
                 uniform.value = textureId++;
-
-                if(shaderUni.src == "$lightmap") {
-                    uniform.texture = "lightmap.png";
-                } else {
-                    uniform.texture = shaderUni.src;
-                }
+                uniform.texture = shaderUni.src;
 
                 if(shaderUni.clamp) { uniform.clamp = shaderUni.clamp; }
                 
@@ -258,10 +253,10 @@ threeJsExport.materialToThreeJs = function(material) {
     return threeMaterial;
 };
 
-threeJsExport.defaultMaterialToThreeJs = function(material) {
+threeJsExport.defaultMaterialToThreeJs = function(material, lightmapPath) {
     var uniforms = {
-        texture: { type: "t", value: 0, texture: material.shaderName + ".png" },
-        lightmap: { type: "t", value: 1, texture: "lightmap.png" }
+        texture: { type: "t", value: 0, texture: material.shaderName },
+        lightmap: { type: "t", value: 1, texture: lightmapPath }
     };
 
     return {
@@ -273,7 +268,7 @@ threeJsExport.defaultMaterialToThreeJs = function(material) {
 
 threeJsExport.modelMaterialToThreeJs = function(material) {
     var uniforms = {
-        texture: { type: "t", value: 0, texture: material.shaderName + ".png" }
+        texture: { type: "t", value: 0, texture: material.shaderName }
     };
 
     return {
