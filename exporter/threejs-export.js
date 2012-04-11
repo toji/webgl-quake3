@@ -184,18 +184,16 @@ threeJsExport.collisionHullsToFile = function(path, data) {
 
 threeJsExport.materialsToFile = function(path, shaders, data, lightmapPath) {
     var i;
-
-    var materials = {};
-
+    var materials = [];
     var material, shader;
+
     for(i = 0; i < data.materials.length; ++i) {
         material = data.materials[i];
-
         shader = shaders[material.shaderName];
         if(shader) {
-            materials[material.shaderName] = threeJsExport.materialToThreeJs(shader);
+            materials.push(threeJsExport.materialToThreeJs(shader));
         } else {
-            materials[material.shaderName] = threeJsExport.defaultMaterialToThreeJs(material, lightmapPath);
+            materials.push(threeJsExport.defaultMaterialToThreeJs(material, lightmapPath));
         }
     }
 

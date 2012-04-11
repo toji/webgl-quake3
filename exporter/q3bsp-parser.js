@@ -306,7 +306,6 @@ q3bspParser.buildLightmapTexture = function(textureSize, lightmaps) {
 
     var canvas = new Canvas(textureSize, textureSize),
         ctx = canvas.getContext('2d'),
-        path = __dirname + '/../demo_baseq3/lightmap.png',
         i, j, lightmap, imageData;
 
     // Copy all lightmaps into the image

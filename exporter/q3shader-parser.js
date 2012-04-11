@@ -113,7 +113,7 @@ q3shaderParser.compileMapMaterials = function(shaders, data) {
 
         shader = shaders[material.shaderName];
         if(shader) {
-            materials[shader.shaderName] = q3shaderParser.compileShader(shader);
+            materials[material.shaderName] = q3shaderParser.compileShader(shader);
         }
     }
 
