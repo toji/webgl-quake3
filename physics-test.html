@@ -6,12 +6,12 @@
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
         <style>
             body {
-                color: #61443e;
+                color: #FFFFFF;
                 font-family:Monospace;
                 font-size:13px;
                 text-align:center;
 
-                background-color: #ffffff;
+                background-color: #000000;
                 margin: 0px;
                 overflow: hidden;
             }
@@ -44,8 +44,6 @@
 
             }
 
-            var fogExp2 = true;
-
             var container, stats;
 
             var camera, controls, scene, renderer;
@@ -69,7 +67,6 @@
                 container = document.getElementById( 'container' );
 
                 scene = new THREE.Scene();
-                //scene.fog = new THREE.FogExp2( 0xffffff, 0.00015 );
 
                 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 20000 );
                 scene.add( camera );
@@ -105,7 +102,12 @@
                     new THREE.MeshBasicMaterial( { color: 0xffffff, wireframe: true, transparent: true, opacity: 0.1 } )
                 ];
                 
-                loadQuake3Map("export", "q3tourney2");
+                loadQuake3Map("root", "q3dm1");
+                camera.position.set(640, 100, -512);
+
+                //loadQuake3Map("export", "q3tourney2");
+                //loadQuake3Map("export", "phantq3dm4");
+                //loadQuake3Map("export", "solitude");
             }
 
             function loadQuake3Map(baseUrl, name) {
@@ -169,14 +171,25 @@
                     uniforms[i] = uniform;
                 }
 
-                return new THREE.ShaderMaterial({
+                var threeMaterial = new THREE.ShaderMaterial({
                     uniforms: uniforms,
                     vertexColors: true,
                     vertexShader: material.vertexShader,
-                    fragmentShader: material.fragmentShader,
-                    blending: THREE.NoBlending,
-                    transparent: false /*material.transparent ? true : false*/
+                    fragmentShader: material.fragmentShader
                 });
+
+                if(material.blend) {
+                    threeMaterial.transparent = true;
+                    threeMaterial.blending = THREE.CustomBlending;
+                    threeMaterial.blendEquation = THREE.AddEquation;
+                    threeMaterial.blendSrc = THREE[material.blendSrc];
+                    threeMaterial.blendDst = THREE[material.blendDst];
+                } else {
+                    threeMaterial.transparent = false;
+                    threeMaterial.blending = THREE.NoBlending;
+                }
+
+                return threeMaterial;
             }
 
             function initPhysics(url) {

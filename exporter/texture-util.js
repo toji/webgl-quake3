@@ -36,19 +36,19 @@ function nextPowerOfTwo(n) {
 }
 
 function decodeTga(content) {
-    var imgTable = "";
+    var contentOffset = 18 + content[0];  //[0] = size of ID field
+    var imagetype = content[2]; // 0=none,1=indexed,2=rgb,3=grey,+8=rle packed
     var width = content[13]*256 + content[12];
     var height = content[15]*256 + content[14];
     var bpp = content[16];  // should be 8,16,24,32
-    var contentOffset = 18 + content[0];  //[0] = size of ID field
-    var imagetype = content[2]; // 0=none,1=indexed,2=rgb,3=grey,+8=rle packed
+    
     var bytesPerPixel = bpp / 8;
     var bytesPerRow = width * bytesPerPixel;
     var byteCount = width * height * bytesPerPixel;
 
-    var redOffset = 2;
-    var greenOffset = 1;
     var blueOffset = 0;
+    var greenOffset = 1;
+    var redOffset = 2;
     var alphaOffset = 3;
 
     if(!width || !height) {
@@ -67,6 +67,8 @@ function decodeTga(content) {
 
     var i = contentOffset, j, x, y;
 
+    var validAlpha = 0;
+
     // Oy, with the flipping of the rows...
     for(y = height-1; y >= 0; --y) {
         for(x = 0; x < width; ++x, i += bytesPerPixel) {
@@ -75,6 +77,17 @@ function decodeTga(content) {
             imageData.data[j+1] = content[i+greenOffset];
             imageData.data[j+2] = content[i+blueOffset];
             imageData.data[j+3] = (bpp === 32 ? content[i+alphaOffset] : 255);
+            validAlpha = validAlpha || imageData.data[j+3];
+        }
+    }
+
+    // This really sucks, but occasionally an image will come through with nothing but 0s in the alpha channel
+    // The canvas stream to PNG premultiplies the alpha values, and so the image comes out empty
+    // I'm not sure this is the right way to fix it, but it seems to work for the moment
+    if(!validAlpha) {
+        i = imageData.data.length;
+        for(j = 3; j < i; j += 4) {
+            imageData.data[j] = 255;
         }
     }
 
@@ -120,7 +133,7 @@ function exportTexture(outputFolder, name, pak) {
     if(path.existsSync(outputFolder + "/" + name + ".jpg")) {
         return name + ".jpg";
     }
-    if(path.existsSync(outputFolder + "/" + name + ".png")) { 
+    if(path.existsSync(outputFolder + "/" + name + ".png")) {
         return name + ".png";
     }
 
