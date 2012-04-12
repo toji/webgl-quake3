@@ -25,8 +25,17 @@ var fs = require("fs");
 var path = require('path');
 var Canvas = require("canvas");
 
-function decodeTga(content)
-{
+function nextPowerOfTwo(n) {
+    --n;
+    n = n | (n >> 1);
+    n = n | (n >> 2);
+    n = n | (n >> 4);
+    n = n | (n >> 8);
+    n = n | (n >> 16);
+    return ++n;
+}
+
+function decodeTga(content) {
     var imgTable = "";
     var width = content[13]*256 + content[12];
     var height = content[15]*256 + content[14];
@@ -51,12 +60,6 @@ function decodeTga(content)
         console.log("Unsupported TGA format:", imagetype);
         return null;
     }
-
-    /*if (bpp === 32) {
-        redOffset = 0;
-        greenOffset = 1;
-        blueOffset = 2;
-    }*/
 
     var canvas = new Canvas(width, height);
     var ctx = canvas.getContext('2d');
@@ -140,7 +143,6 @@ function exportTexture(outputFolder, name, pak) {
 }
 
 function exportJpg(outputFolder, entry) {
-    //var img = new Canvas.Image();
     var exportPath = outputFolder + "/" + entry.name;
     var file;
 
@@ -149,9 +151,26 @@ function exportJpg(outputFolder, entry) {
 
     file = entry.pak.readFileSync(entry.name);
 
-    // TODO: Check for NPOT
-    
-    fs.writeFileSync(exportPath, file);
+    // It's unfortunate that we have to do this, but not all Quake 3 textures are powers of two
+    /*var img = new Canvas.Image();
+    img.src = exportPath;
+
+    console.log("Texture Dimensions:", entry.name, img.width, "*", img.height);
+
+    var potWidth = nextPowerOfTwo(img.width);
+    var potHeight = nextPowerOfTwo(img.height);
+
+    if(potWidth != img.width || potHeight != img.height) {
+        console.log("Found NPOT texture, resizing:", img.width, "*", img.height);
+        // NPOT, Resize!
+        var canvas = new Canvas(potWidth, potHeight);
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, potWidth, potHeight);
+
+        writeCanvasToJpg(outputFolder, entry.name, canvas);
+    } else { */
+        fs.writeFileSync(exportPath, file);
+    //}
 
     return entry.name;
 }
@@ -210,4 +229,14 @@ var writeCanvasToPng = exports.writeCanvasToPng = function(outputFolder, name, c
     stream.on('data', function(chunk){
         out.write(chunk);
     });
-}
+};
+
+var writeCanvasToJpg = exports.writeCanvasToJpg = function(outputFolder, name, canvas) {
+    // Write compiled lightmap out to JPG
+    ensureFilePathExists(outputFolder + "/" + name);
+    var out = fs.createWriteStream(outputFolder + "/" + name);
+    var stream = canvas.createJPEGStream();
+    stream.on('data', function(chunk){
+        out.write(chunk);
+    });
+};

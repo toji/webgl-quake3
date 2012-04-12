@@ -246,9 +246,31 @@ threeJsExport.materialToThreeJs = function(material) {
     };
 
     if(material.cull) { threeMaterial.cull = material.cull; }
-    if(material.blend) { threeMaterial.transparent = true; }
+    if(material.blend) {
+        threeMaterial.blend = true;
+        threeMaterial.blendSrc = threeJsExport.translateBlend(material.blendSrc);
+        threeMaterial.blendDst = threeJsExport.translateBlend(material.blendDst);
+    }
 
     return threeMaterial;
+};
+
+threeJsExport.translateBlend = function(blend) {
+    
+    switch(blend) {
+        case "ZERO": return "ZeroFactor";
+        case "ONE": return "OneFactor";
+        case "SRC_COLOR": return "SrcColorFactor";
+        case "ONE_MINUS_SRC_COLOR": return "OneMinusSrcColorFactor";
+        case "SRC_ALPHA": return "SrcAlphaFactor";
+        case "ONE_MINUS_SRC_ALPHA": return "OneMinusSrcAlphaFactor";
+        case "DST_ALPHA": return "DstAlphaFactor";
+        case "ONE_MINUS_DST_ALPHA": return "OneMinusDstAlphaFactor";
+        case "DST_COLOR": return "DstColorFactor";
+        case "ONE_MINUS_DST_COLOR": return "OneMinusDstColorFactor";
+        case "SRC_ALPHA_SATURATE": return "SrcAlphaSaturateFactor";
+        default: return "CAN_HAZ_" + blend + "BLEND?";
+    }
 };
 
 threeJsExport.defaultMaterialToThreeJs = function(material, lightmapPath) {

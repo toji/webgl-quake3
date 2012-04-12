@@ -104,7 +104,7 @@ q3shaderParser.parse = function(src, shaders) {
     return shaders;
 };
 
-q3shaderParser.compileMapMaterials = function(shaders, data) {
+q3shaderParser.compileMapMaterials = function(shaders, data, lightmapPath) {
     var materials = {};
 
     var i, material, shader;
@@ -120,10 +120,13 @@ q3shaderParser.compileMapMaterials = function(shaders, data) {
     return materials;
 };
 
-q3shaderParser.compileShader = function(shader) {
+q3shaderParser.compileShader = function(shader, lightmapPath) {
     var material = null;
+    var firstStage;
 
     if(shader && shader.stages) {
+        firstStage = shader.stages[0];
+
         material = {
             sort: shader.sort
         };
@@ -132,13 +135,13 @@ q3shaderParser.compileShader = function(shader) {
             material.cull = shader.cull;
         }
 
-        if(shader.blend) {
-            material.blend = shader.blend;
-            material.blendSrc = shader.blendSrc;
-            material.blendDest = shader.blendDest;
+        if(firstStage && firstStage.hasBlendFunc) {
+            material.blend = true;
+            material.blendSrc = firstStage.blendSrc.toUpperCase().replace("GL_", "");
+            material.blendDst = firstStage.blendDest.toUpperCase().replace("GL_", "");
         }
 
-        var builder = q3shaderParser.buildShader(shader);
+        var builder = q3shaderParser.buildShader(shader, lightmapPath);
 
         material.shader = builder.getShaderObject();
     }
@@ -442,7 +445,7 @@ q3shaderParser.parseStage = function(tokens) {
         stage.depthWrite = true;
     }
     
-    stage.isLightmap = stage.map == '$lightmap'
+    stage.isLightmap = (stage.map == '$lightmap');
     
     return stage;
 };
@@ -464,7 +467,7 @@ q3shaderParser.parseWaveform = function(tokens) {
 // This whole section is a bit ugly, but it gets the job done. The job, in this case, is translating
 // Quake 3 shaders into GLSL shader programs. We should probably be doing a bit more normalization here.
 
-q3shaderParser.buildShader = function(stageShader) {
+q3shaderParser.buildShader = function(stageShader, lightmapPath) {
     var i, stage;
     var builder = new shaderBuilder();
 
@@ -527,7 +530,7 @@ q3shaderParser.buildShader = function(stageShader) {
 
     for(i = 0; i < stageShader.stages.length; ++i) {
         stage = stageShader.stages[i];
-        q3shaderParser.buildFragmentPass(stageShader, stage, builder);
+        q3shaderParser.buildFragmentPass(stageShader, stage, builder, lightmapPath);
     }
 
     builder.addFragmentLines(['gl_FragColor = fragColor;']);
@@ -620,7 +623,7 @@ q3shaderParser.buildVertexPass = function(stageShader, stage, shader) {
     shader.addVertexLines([texCoordVar + ' = ' + passName + "(worldPosition);"]);
 }
 
-q3shaderParser.buildFragmentPass = function(stageShader, stage, shader) {
+q3shaderParser.buildFragmentPass = function(stageShader, stage, shader, lightmapPath) {
     var passName = "fragPass" + stage.stageId;
     var samplerVar = "texSampler" + stage.stageId;
     var texCoordVar = "vTexCoord" + stage.stageId;
@@ -654,7 +657,7 @@ q3shaderParser.buildFragmentPass = function(stageShader, stage, shader) {
             break;
         case 'lightingspecular':
             // For now this is VERY special cased. May not work well with all instances of lightingSpecular
-            shader.addUniform("lightmap", {type: 'sampler2D', src: "$lightmap"});
+            shader.addUniform("lightmap", {type: 'sampler2D', src: lightmapPath});
             passFunc += [
                 '   vec4 light = texture2D(lightmap, vLightCoord);',
                 'rgb *= light.rgb;',

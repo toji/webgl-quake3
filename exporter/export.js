@@ -65,7 +65,7 @@ q3bspParser.parse(mapFile, 5, function(data) {
     textureUtil.exportTextures(outputFolder, shaders, data, lightmapPath, pak);
     console.log("Textures exported");
 
-    var materials = q3shaderParser.compileMapMaterials(shaders, data);
+    var materials = q3shaderParser.compileMapMaterials(shaders, data, lightmapPath);
     console.log("Materials compiled");
 
     threeJsExport.geometryToFile(outputFolder + "/" + map + ".json", materials, data);
