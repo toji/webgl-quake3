@@ -55,7 +55,7 @@
             var timeUniform = { type: "f", value: 1.0 };
 
             var dynamicsWorld;
-            var bulletMaterials;
+            var bulletMaterial;
 
             var physicsMeshCallbacks = [];
 
@@ -97,10 +97,7 @@
                 container.appendChild( stats.domElement );
 
 
-                bulletMaterials = [
-                    new THREE.MeshLambertMaterial( { ambient: 0xbbbbbb, map: THREE.ImageUtils.loadTexture( 'demo_baseq3/textures/sfx/metalbridge06_bounce.png' ) } ),
-                    new THREE.MeshBasicMaterial( { color: 0xffffff, wireframe: true, transparent: true, opacity: 0.1 } )
-                ];
+                bulletMaterial =new THREE.MeshLambertMaterial( { ambient: 0xbbbbbb, map: THREE.ImageUtils.loadTexture( 'demo_baseq3/textures/sfx/metalbridge06_bounce.png' ) } );
                 
                 loadQuake3Map("root", "q3dm1");
                 camera.position.set(640, 100, -512);
@@ -264,7 +261,7 @@
                 dir.multiplyScalar(200); // speed of launch
                 body.applyCentralForce(new Ammo.btVector3(dir.x, dir.y, dir.z));
 
-                var object = THREE.SceneUtils.createMultiMaterialObject( new THREE.CubeGeometry( 10, 10, 10, 1, 1, 1 ), bulletMaterials );
+                var object = new THREE.Mesh( new THREE.CubeGeometry( 10, 10, 10, 1, 1, 1 ), bulletMaterial );
                 object.position.set(pos.x, pos.y, pos.z);
                 object.useQuaternion = true;
                 scene.add(object);
