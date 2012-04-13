@@ -193,7 +193,12 @@ threeJsExport.materialsToFile = function(path, shaders, data, lightmapPath) {
         if(shader) {
             materials.push(threeJsExport.materialToThreeJs(shader));
         } else {
-            materials.push(threeJsExport.defaultMaterialToThreeJs(material, lightmapPath));
+            if(material.geomType == 3) {
+                materials.push(threeJsExport.modelMaterialToThreeJs(material));
+            } else {
+                materials.push(threeJsExport.defaultMaterialToThreeJs(material, lightmapPath));
+            }
+            
         }
     }
 
