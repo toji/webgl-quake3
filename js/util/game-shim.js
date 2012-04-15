@@ -1,7 +1,7 @@
 /**
  * @fileoverview game-shim - Shims to normalize gaming-related APIs to their respective specs
  * @author Brandon Jones
- * @version 0.2
+ * @version 0.5
  */
 
 /*
@@ -32,6 +32,14 @@
 
     var elementPrototype = (global.HTMLElement || global.Element)["prototype"];
     var getter;
+
+    var GameShim = global.GameShim = {
+        supports: {
+            fullscreen: true,
+            pointerLock: true,
+            gamepad: true
+        }
+    };
     
     //=====================
     // Animation
@@ -41,24 +49,24 @@
     // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
     (function() {
         var lastTime = 0;
-        var vendors = ['webkit', 'moz', 'ms', 'o'];
+        var vendors = ["webkit", "moz", "ms", "o"];
         var x;
 
         for(x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
-            window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+            window.requestAnimationFrame = window[vendors[x]+"RequestAnimationFrame"];
         }
 
         window.cancelAnimationFrame = window.cancelAnimationFrame || window.cancelRequestAnimationFrame; // Check for older syntax
         for(x = 0; x < vendors.length && !window.cancelAnimationFrame; ++x) {
-            window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame'] || window[vendors[x]+'CancelRequestAnimationFrame'];
+            window.cancelAnimationFrame = window[vendors[x]+"CancelAnimationFrame"] || window[vendors[x]+"CancelRequestAnimationFrame"];
         }
 
         // Manual fallbacks
         if (!window.requestAnimationFrame) {
             window.requestAnimationFrame = function(callback, element) {
-                var currTime = new Date().getTime();
+                var currTime = Date.now();
                 var timeToCall = Math.max(0, 16 - (currTime - lastTime));
-                var id = window.setTimeout(function() { callback(timeToCall); },
+                var id = window.setTimeout(function() { callback(currTime + timeToCall); },
                   timeToCall);
                 lastTime = currTime + timeToCall;
                 return id;
@@ -70,14 +78,25 @@
                 clearTimeout(id);
             };
         }
+        
+        // window.animationStartTime
+        if(!window.animationStartTime) {
+            getter = (function() {
+                for(x = 0; x < vendors.length; ++x) {
+                    if(window[vendors[x] + "AnimationStartTime"]) {
+                        return function() { return window[vendors[x] + "AnimationStartTime"]; };
+                    }
+                }
+
+                return function() { return Date.now(); };
+            })();
+
+            Object.defineProperty(window, "animationStartTime", {
+                enumerable: true, configurable: false, writeable: false,
+                get: getter
+            });
+        }
     }());
-    
-    // window.animationStartTime
-    if(!window.animationStartTime) {
-        window.animationStartTime = window.webkitAnimationStartTime ||
-        window.mozAnimationStartTime ||
-        new Date().getTime();
-    }
     
     //=====================
     // Fullscreen
@@ -93,6 +112,8 @@
             if("mozFullScreen" in document) {
                 return function() { return document.mozFullScreen; };
             }
+
+            GameShim.supports.fullscreen = false;
             return function() { return false; }; // not supported, never fullscreen
         })();
         
@@ -148,9 +169,14 @@
                     this.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
                 };
             }
+
+            if(elementPrototype.mozRequestFullScreen) {
+                return function() {
+                    this.mozRequestFullScreen();
+                };
+            }
             
-            return  elementPrototype.mozRequestFullScreen ||
-                    function(){ /* unsupported, fail silently */ };
+            return function(){ /* unsupported, fail silently */ };
         })();
     }
     
@@ -164,7 +190,7 @@
     }
     
     //=====================
-    // Mouse Lock
+    // Pointer Lock
     //=====================
     
     var mouseEventPrototype = global.MouseEvent.prototype;
@@ -188,7 +214,27 @@
     if(!navigator.pointer) {
         navigator.pointer = navigator.webkitPointer || navigator.mozPointer;
     }
-    
+
+    // Document event: pointerlockchange
+    function pointerlockchange(oldEvent) {
+        var newEvent = document.createEvent("CustomEvent");
+        newEvent.initCustomEvent("pointerlockchange", true, false, null);
+        document.dispatchEvent(newEvent);
+    }
+    document.addEventListener("webkitpointerlockchange", pointerlockchange, false);
+    document.addEventListener("webkitpointerlocklost", pointerlockchange, false);
+    document.addEventListener("mozpointerlockchange", pointerlockchange, false);
+    document.addEventListener("mozpointerlocklost", pointerlockchange, false);
+
+    // Document event: pointerlockerror
+    function pointerlockerror(oldEvent) {
+        var newEvent = document.createEvent("CustomEvent");
+        newEvent.initCustomEvent("pointerlockerror", true, false, null);
+        document.dispatchEvent(newEvent);
+    }
+    document.addEventListener("webkitpointerlockerror", pointerlockerror, false);
+    document.addEventListener("mozpointerlockerror", pointerlockerror, false);
+
     // document.pointerLockEnabled
     if(!document.hasOwnProperty("pointerLockEnabled")) {
         getter = (function() {
@@ -213,6 +259,8 @@
                     return function() { return navigator.pointer.islocked(); };
                 }
             }
+
+            GameShim.supports.pointerLock = false;
             return function() { return false; }; // not supported, never locked
         })();
         
@@ -249,7 +297,7 @@
                     function(){
                         if(navigator.pointer) {
                             var elem = this;
-                            navigator.pointer.lock(elem);
+                            navigator.pointer.lock(elem, pointerlockchange, pointerlockerror);
                         }
                     };
         })();
@@ -283,6 +331,7 @@
                 return function() { return navigator.mozGamepads; };
             }
             
+            GameShim.supports.gamepad = false;
             var gamepads = [];
             return function() { return gamepads; }; // not supported, return empty array
         })();
