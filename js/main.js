@@ -499,27 +499,5 @@ function main() {
     button.addEventListener('click', function() {
         viewportFrame.requestFullScreen();
     }, false);
-
-    // Check to see if this is running on a platform that supports Mozilla's web apps
-    if(navigator.mozApps) {
-        var appState = navigator.mozApps.getSelf();
-        appState.onsuccess = function() {
-            if(this.result) {
-                alert("Installed!");
-            } else {
-                alert("Not installed!");
-                var install = navigator.mozApps.install("/manifest.webapp");
-                install.onsuccess = function() {
-                    alert("Installed!");
-                };
-                install.onerror = function() {
-                    alert("Install error:" + this.error);
-                };
-            }
-        };
-        appState.onerror = function() {
-            
-        };
-    }
 }
 window.addEventListener("load", main); // Fire this once the page is loaded up
