@@ -397,8 +397,9 @@ function getAvailableContext(canvas, contextList) {
 }
 
 function renderLoop(gl, element) {
-    var lastTimestamp = window.animationStartTime;
-    var lastFps = window.animationStartTime;
+    var startTime = new Date().getTime();
+    var lastTimestamp = startTime;
+    var lastFps = startTime;
     var framesPerSecond = 0;
     var frameCount = 0;
             
@@ -418,7 +419,7 @@ function renderLoop(gl, element) {
         
         onFrame(gl, {
             timestamp: timestamp,
-            elapsed: timestamp - window.animationStartTime,
+            elapsed: timestamp - startTime,
             frameTime: timestamp - lastTimestamp,
             framesPerSecond: framesPerSecond
         });
