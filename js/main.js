@@ -397,8 +397,9 @@ function getAvailableContext(canvas, contextList) {
 }
 
 function renderLoop(gl, element) {
-    var lastTimestamp = window.animationStartTime;
-    var lastFps = window.animationStartTime;
+    var startTime = new Date().getTime();
+    var lastTimestamp = startTime;
+    var lastFps = startTime;
     var framesPerSecond = 0;
     var frameCount = 0;
             
@@ -418,7 +419,7 @@ function renderLoop(gl, element) {
         
         onFrame(gl, {
             timestamp: timestamp,
-            elapsed: timestamp - window.animationStartTime,
+            elapsed: timestamp - startTime,
             frameTime: timestamp - lastTimestamp,
             framesPerSecond: framesPerSecond
         });
@@ -430,8 +431,8 @@ function renderLoop(gl, element) {
 function makeSiteMobile() {
     mobileSite = true;
     document.body.classList.add("mobile");
-    GL_WINDOW_WIDTH = window.innerWidth/2;
-    GL_WINDOW_HEIGHT = window.innerHeight/2;
+    GL_WINDOW_WIDTH = window.innerWidth * window.devicePixelRatio;
+    GL_WINDOW_HEIGHT = window.innerHeight * window.devicePixelRatio;
 }
 
 var GL_WINDOW_WIDTH = 854;
