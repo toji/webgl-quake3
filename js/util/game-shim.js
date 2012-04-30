@@ -1,7 +1,7 @@
 /**
  * @fileoverview game-shim - Shims to normalize gaming-related APIs to their respective specs
  * @author Brandon Jones
- * @version 0.5
+ * @version 0.6
  */
 
 /*
@@ -260,8 +260,7 @@
                 }
             }
 
-            GameShim.supports.pointerLock = false;
-            return function() { return false; }; // not supported, never locked
+            return function() { return !!document.pointerLockElement; };
         })();
         
         Object.defineProperty(document, "pointerLockEnabled", {
@@ -279,7 +278,6 @@
             if("mozPointerLockElement" in document) {
                 return function() { return document.mozPointerLockElement; };
             }
-            
             return function() { return null; }; // not supported
         })();
         
@@ -292,14 +290,28 @@
     // element.requestPointerLock
     if(!elementPrototype.requestPointerLock) {
         elementPrototype.requestPointerLock = (function() {
-            return  elementPrototype.webkitRequestPointerLock ||
-                    elementPrototype.mozRequestPointerLock    ||
-                    function(){
-                        if(navigator.pointer) {
-                            var elem = this;
-                            navigator.pointer.lock(elem, pointerlockchange, pointerlockerror);
-                        }
-                    };
+            if(elementPrototype.webkitRequestPointerLock) {
+                return function() {
+                    this.webkitRequestPointerLock();
+                };
+            }
+
+            if(elementPrototype.mozRequestPointerLock) {
+                return function() {
+                    this.mozRequestPointerLock();
+                };
+            }
+
+            if(navigator.pointer) {
+                return function() {
+                    var elem = this;
+                    navigator.pointer.lock(elem, pointerlockchange, pointerlockerror);
+                };
+            }
+
+            GameShim.supports.pointerLock = false;
+
+            return function(){}; // not supported
         })();
     }
     

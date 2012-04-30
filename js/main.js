@@ -319,10 +319,6 @@ function initEvents() {
         playerMover.move(dir, frameTime*2);
     }
     
-    viewport.addEventListener("click", function(event) {
-        viewport.requestPointerLock();
-    }, false);
-    
     // Mouse handling code
     // When the mouse is pressed it rotates the players view
     viewport.addEventListener("mousedown", function(event) {
@@ -486,7 +482,9 @@ function main() {
         if(document.fullscreenEnabled) {
             canvas.width = screen.width;
             canvas.height = screen.height;
-            viewportFrame.requestPointerLock(); // Attempt to lock the mouse automatically on fullscreen
+            try {
+                viewportFrame.requestPointerLock(); // Attempt to lock the mouse automatically on fullscreen
+            } catch(e) {}
         } else {
             canvas.width = GL_WINDOW_WIDTH;
             canvas.height = GL_WINDOW_HEIGHT;
