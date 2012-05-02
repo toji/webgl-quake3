@@ -393,7 +393,7 @@ function getAvailableContext(canvas, contextList) {
 }
 
 function renderLoop(gl, element) {
-    var startTime = new Date().getTime();
+    var startTime = performance.now();
     var lastTimestamp = startTime;
     var lastFps = startTime;
     var framesPerSecond = 0;
@@ -401,7 +401,7 @@ function renderLoop(gl, element) {
             
     function onRequestedFrame(timestamp){
         if(!timestamp) {
-            timestamp = new Date().getTime();
+            timestamp = performance.now();
         }
 
         // Update FPS if a second or more has passed since last FPS update

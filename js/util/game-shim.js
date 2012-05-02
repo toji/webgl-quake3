@@ -1,7 +1,7 @@
 /**
  * @fileoverview game-shim - Shims to normalize gaming-related APIs to their respective specs
  * @author Brandon Jones
- * @version 0.6
+ * @version 0.7
  */
 
 /*
@@ -37,7 +37,8 @@
         supports: {
             fullscreen: true,
             pointerLock: true,
-            gamepad: true
+            gamepad: true,
+            highResTimer: true
         }
     };
     
@@ -352,6 +353,36 @@
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
+    }
+
+    //=======================
+    // High Resolution Timer
+    //=======================
+
+    if(!window.performance) {
+        window.performance = {};
+    }
+
+    if(!window.performance.timing) {
+        window.performance.timing = {
+            navigationStart: Date.now() // Terrible approximation, I know. Sorry.
+        };
+    }
+
+    if(!window.performance.now) {
+        window.performance.now = (function() {
+            // FYI: Mozilla supports high-res timers without prefixes.
+
+            if(window.performance.webkitNow) {
+                return window.performance.webkitNow;
+            }
+
+            GameShim.supports.highResTimer = false;
+
+            return function(){ // not supported, return a low-resolution approximation
+                return Date.now() - window.performance.timing.navigationStart;
+            };
+        })();
     }
     
 })((typeof(exports) != 'undefined') ? global : window); // Account for CommonJS environments
