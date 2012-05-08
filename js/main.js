@@ -399,10 +399,8 @@ function renderLoop(gl, element) {
     var framesPerSecond = 0;
     var frameCount = 0;
             
-    function onRequestedFrame(timestamp){
-        if(!timestamp) {
-            timestamp = performance.now();
-        }
+    function onRequestedFrame(){
+        var timestamp = performance.now();
 
         // Update FPS if a second or more has passed since last FPS update
         if(timestamp - lastFps >= 1000) {
