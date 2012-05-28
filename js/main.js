@@ -393,14 +393,14 @@ function getAvailableContext(canvas, contextList) {
 }
 
 function renderLoop(gl, element) {
-    var startTime = performance.now();
+    var startTime = Date.now();
     var lastTimestamp = startTime;
     var lastFps = startTime;
     var framesPerSecond = 0;
     var frameCount = 0;
             
     function onRequestedFrame(){
-        var timestamp = performance.now();
+        var timestamp = Date.now();
 
         // Update FPS if a second or more has passed since last FPS update
         if(timestamp - lastFps >= 1000) {
@@ -494,6 +494,12 @@ function main() {
     var button = document.getElementById('fullscreenBtn');
     button.addEventListener('click', function() {
         viewportFrame.requestFullScreen();
+    }, false);
+
+    canvas.addEventListener('click', function() {
+        try {
+            viewportFrame.requestPointerLock(); // Attempt to lock the mouse automatically on fullscreen
+        } catch(e) {}
     }, false);
 }
 window.addEventListener("load", main); // Fire this once the page is loaded up
