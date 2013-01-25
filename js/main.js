@@ -396,34 +396,27 @@ function getAvailableContext(canvas, contextList) {
     return null;
 }
 
-function renderLoop(gl, element) {
+function renderLoop(gl, element, stats) {
     var startTime = new Date().getTime();
     var lastTimestamp = startTime;
     var lastFps = startTime;
-    var framesPerSecond = 0;
-    var frameCount = 0;
             
     function onRequestedFrame(timestamp){
         if(!timestamp) {
             timestamp = new Date().getTime();
         }
-
-        // Update FPS if a second or more has passed since last FPS update
-        if(timestamp - lastFps >= 1000) {
-            framesPerSecond = frameCount;
-            frameCount = 0;
-            lastFps = timestamp;
-        }
         
         window.requestAnimationFrame(onRequestedFrame, element);
+
+        stats.begin();
         
         onFrame(gl, {
             timestamp: timestamp,
             elapsed: timestamp - startTime,
             frameTime: timestamp - lastTimestamp,
-            framesPerSecond: framesPerSecond
         });
-        ++frameCount;
+
+        stats.end();
     }
     window.requestAnimationFrame(onRequestedFrame, element);
 }
@@ -439,6 +432,9 @@ var GL_WINDOW_WIDTH = 854;
 var GL_WINDOW_HEIGHT = 480;
 
 function main() {
+    var stats = new Stats();
+    document.getElementById("viewport-frame").appendChild( stats.domElement );
+
     var mobileQS = getQueryVariable("mobile");
     if(mobileQS === "1" || (mobileQS !== "0" && isMobile())) {
         makeSiteMobile();
@@ -460,16 +456,15 @@ function main() {
         document.getElementById('viewport-info').style.display = 'block';
         initEvents();
         initGL(gl, canvas);
-        renderLoop(gl, canvas);
+        renderLoop(gl, canvas, stats);
     }
 
-    var fpsCounter = document.getElementById("fps-counter");
     var showFPS = document.getElementById("showFPS");
     showFPS.addEventListener("change", function() {
         if(showFPS.checked) {
-            fpsCounter.style.display = "block";
+            stats.domElement.style.display = "block";
         } else {
-            fpsCounter.style.display = "none";
+            stats.domElement.style.display = "none";
         }
     });
     
