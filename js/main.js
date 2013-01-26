@@ -56,6 +56,7 @@ var mobileSite = false;
 var zAngle = 3;
 var xAngle = 0;
 var cameraPosition = [0, 0, 0];
+var onResize = null;
 
 function getQueryVariable(variable) {
     var query = window.location.search.substring(1);
@@ -69,15 +70,8 @@ function getQueryVariable(variable) {
     return null;
 }
 
-// Take a stab at detecting if this is a mobile device or not
-function isMobile() {
-    var index = navigator.appVersion.indexOf("Mobile");
-    return (index > -1);
-}
-
 // Set up basic GL State up front
 function initGL(gl, canvas) {
-    gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clearDepth(1.0);
     
@@ -86,7 +80,6 @@ function initGL(gl, canvas) {
     gl.enable(gl.CULL_FACE);
     
     projectionMat = mat4.create();
-    mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
     modelViewMat = mat4.create();
     
     initMap(gl);
@@ -119,6 +112,7 @@ function initPlayerMover(bsp) {
     playerMover = new q3movement(bsp);
     respawnPlayer(0);
     document.getElementById('viewport').style.display = 'block';
+    onResize();
 }
 
 var lastIndex = 0;
@@ -148,7 +142,6 @@ var lastMove = 0;
 
 function onFrame(gl, event) {
     if(!map || !playerMover) { return; }
-    document.getElementById("fps").innerHTML = event.framesPerSecond;
     
     // Update player movement @ 60hz
     // The while ensures that we update at a fixed rate even if the rendering bogs down
@@ -334,7 +327,7 @@ function initEvents() {
         endLook();
     }, false);
     viewportFrame.addEventListener("mousemove", function(event) {
-        if(document.pointerLockEnabled) {
+        if(document.pointerLockElement) {
             moveLookLocked(event.movementX, event.movementY);
         } else {
             moveLook(event.pageX, event.pageY);
@@ -401,10 +394,8 @@ function renderLoop(gl, element, stats) {
     var lastTimestamp = startTime;
     var lastFps = startTime;
             
-    function onRequestedFrame(timestamp){
-        if(!timestamp) {
-            timestamp = new Date().getTime();
-        }
+    function onRequestedFrame(){
+        timestamp = new Date().getTime();
         
         window.requestAnimationFrame(onRequestedFrame, element);
 
@@ -421,33 +412,29 @@ function renderLoop(gl, element, stats) {
     window.requestAnimationFrame(onRequestedFrame, element);
 }
 
-function makeSiteMobile() {
-    mobileSite = true;
-    document.body.classList.add("mobile");
-    GL_WINDOW_WIDTH = window.innerWidth * window.devicePixelRatio;
-    GL_WINDOW_HEIGHT = window.innerHeight * window.devicePixelRatio;
-}
-
-var GL_WINDOW_WIDTH = 854;
-var GL_WINDOW_HEIGHT = 480;
-
 function main() {
     var stats = new Stats();
     document.getElementById("viewport-frame").appendChild( stats.domElement );
 
-    var mobileQS = getQueryVariable("mobile");
-    if(mobileQS === "1" || (mobileQS !== "0" && isMobile())) {
-        makeSiteMobile();
-    }
-
     var canvas = document.getElementById("viewport");
-    
-    // Set the canvas size
-    canvas.width = GL_WINDOW_WIDTH;
-    canvas.height = GL_WINDOW_HEIGHT;
-    
+
     // Get the GL Context (try 'webgl' first, then fallback)
     var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
+
+    onResize = function() {
+        var devicePixelRatio = window.devicePixelRatio || 1;
+
+        if(document.fullscreenElement) {
+            canvas.width = screen.width * devicePixelRatio;
+            canvas.height = screen.height * devicePixelRatio;
+        } else {
+            canvas.width = canvas.clientWidth * devicePixelRatio;
+            canvas.height = canvas.clientHeight * devicePixelRatio;
+        }
+
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
+    }
     
     if(!gl) {
         document.getElementById('viewport-frame').style.display = 'none';
@@ -459,6 +446,9 @@ function main() {
         renderLoop(gl, canvas, stats);
     }
 
+    onResize();
+    window.addEventListener("resize", onResize, false);
+
     var showFPS = document.getElementById("showFPS");
     showFPS.addEventListener("change", function() {
         if(showFPS.checked) {
@@ -468,26 +458,20 @@ function main() {
         }
     });
     
-    var playMusic = document.getElementById("playMusic");
+    /*var playMusic = document.getElementById("playMusic");
     playMusic.addEventListener("change", function() {
         if(map) {
             map.playMusic(playMusic.checked);
         }
-    });
+    });*/
     
     // Handle fullscreen transition
     var viewportFrame = document.getElementById("viewport-frame");
     document.addEventListener("fullscreenchange", function() {
         if(document.fullscreenEnabled) {
-            canvas.width = screen.width;
-            canvas.height = screen.height;
             viewportFrame.requestPointerLock(); // Attempt to lock the mouse automatically on fullscreen
-        } else {
-            canvas.width = GL_WINDOW_WIDTH;
-            canvas.height = GL_WINDOW_HEIGHT;
         }
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
+        onResize();
     }, false);
     
     var button = document.getElementById('fullscreenBtn');

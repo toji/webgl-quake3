@@ -52,7 +52,7 @@ q3bsp = function(gl) {
         map.onMessage(msg);
     };
     this.worker.onerror = function(msg) {
-        throw 'Line: ' + msg.lineno + ', ' + msg.message;
+        console.error('Line: ' + msg.lineno + ', ' + msg.message);
     };
     
     // Map elements
@@ -181,14 +181,14 @@ q3bsp.prototype.processEntities = function(entities) {
     }
     
     // Background music
-    if(entities.worldspawn[0].music) {
+    /*if(entities.worldspawn[0].music) {
         this.bgMusic = new Audio(q3bsp_base_folder + '/' + entities.worldspawn[0].music.replace('.wav', '.ogg'));
         // TODO: When can we change this to simply setting the 'loop' property?
         this.bgMusic.addEventListener('ended', function(){
             this.currentTime = 0;
         }, false);
         this.bgMusic.play();
-    }
+    }*/
     
     // It would be relatively easy to do some ambient sound processing here, but I don't really feel like
     // HTML5 audio is up to the task. For example, lack of reliable gapless looping makes them sound terrible!

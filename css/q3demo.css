@@ -30,7 +30,7 @@ h2 {
     pointer-events: none;
 }
 
-#viewport-frame, #webgl-error {
+#viewport-frame, #webgl-error, canvas {
     position: relative;
     margin: auto;
     width: 854px;
@@ -81,7 +81,7 @@ canvas {
     cursor: pointer;
 }
 
-#viewport-frame:-moz-full-screen, canvas:-moz-full-screen {
+#viewport-frame:-moz-full-screen, :-moz-full-screen canvas {
     width: 100%;
     height: 100%;
     position: absolute;
@@ -90,7 +90,7 @@ canvas {
     margin: 0;
 }
 
-#viewport-frame:-webkit-full-screen, canvas:-webkit-full-screen {
+#viewport-frame:-webkit-full-screen, :-webkit-full-screen canvas {
     width: 100%;
     height: 100%;
     position: absolute;
@@ -114,35 +114,37 @@ canvas {
     pointer-events: none;
 }
 
-/* Mobile Styles */
-.mobile h2,
-.mobile #viewport-info {
-    display: none !important;
-}
 
-.mobile #webgl-error {
-    width: 100%;
-    height: 100%;
-}
+/* Smaller than standard 960 (devices and browsers) */
+@media only screen and (max-width: 959px) {
+    h2, #viewport-info {
+        display: none !important;
+    }
 
-.mobile #viewport-frame
- {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    left: 0;
-    top: 0;
-    margin: 0;
-}
+    #webgl-error {
+        width: 100%;
+        height: 100%;
+    }
 
-.mobile canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    cursor: move;
-    background-color: black;
-    display: none;
-    text-align: center;
-    width: 100%;
-    height: 100%;
-} 
+    #viewport-frame
+     {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        margin: 0;
+    }
+
+    canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        cursor: move;
+        background-color: black;
+        display: none;
+        text-align: center;
+        width: 100%;
+        height: 100%;
+    } 
+}

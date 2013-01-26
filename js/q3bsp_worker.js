@@ -64,16 +64,9 @@ q3bsp = {};
 q3bsp.load = function(url, tesselationLevel, errorCallback) {
     var request = new XMLHttpRequest();
     
-    request.onreadystatechange = function () {
-        if (request.readyState == 4 && request.status == 200) {
-            q3bsp.parse(new BinaryFile(request.responseText), tesselationLevel);
-        }
-        else if(request.status == 404) {
-            if(errorCallback) {
-                errorCallback(request.status);
-            }
-        }
-    };
+    request.addEventListener("load", function () {
+        q3bsp.parse(new BinaryFile(request.responseText), tesselationLevel);
+    }, false);
     
     request.open('GET', url, true);
     request.overrideMimeType('text/plain; charset=x-user-defined');
