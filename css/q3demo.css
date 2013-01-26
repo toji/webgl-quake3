@@ -30,7 +30,7 @@ h2 {
     pointer-events: none;
 }
 
-#viewport-frame, #webgl-error, canvas {
+#viewport-frame, #webgl-error {
     position: relative;
     margin: auto;
     width: 854px;
@@ -38,6 +38,8 @@ h2 {
 }
 
 canvas {
+    width: 854px;
+    height: 480px;
     cursor: move;
     text-align: center;
     background-color: black;
