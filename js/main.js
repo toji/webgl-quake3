@@ -255,6 +255,14 @@ function initEvents() {
             playerMover.jump();
         }
         pressed[event.keyCode] = true;
+        if (event.keyCode == 'W'.charCodeAt(0) ||
+            event.keyCode == 'S'.charCodeAt(0) ||
+            event.keyCode == 'A'.charCodeAt(0) ||
+            event.keyCode == 'D'.charCodeAt(0) ||
+            event.keyCode == 'R'.charCodeAt(0) ||
+            event.keyCode == 32) {
+            event.preventDefault();
+        }
     }, false);
     
     document.addEventListener("keypress", function(event) {
