@@ -1,0 +1,20 @@
+{
+  "name": "webgl-quake3",
+  "version": "0.0.0",
+  "description": "WebGL Quake 3 Renderer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toji/webgl-quake3.git"
+  },
+  "author": "Brandon Jones",
+  "bugs": {
+    "url": "https://github.com/toji/webgl-quake3/issues"
+  },
+  "dependencies": {
+    "express": "3.4.8"
+  }
+}
