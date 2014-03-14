@@ -211,19 +211,31 @@ function updateInput(frameTime) {
         dir[0] += 1;
     }
     
-    for (var i = 0; i < navigator.gamepads.length; ++i) {
-        var pad = navigator.gamepads[i];
+    var gamepads = [];
+    if (navigator.getGamepads) {
+        gamepads = navigator.getGamepads();
+    } else if (navigator.webkitGetGamepads) {
+        gamepads = navigator.webkitGetGamepads();
+    }
+
+    for (var i = 0; i < gamepads.length; ++i) {
+        var pad = gamepads[i];
         if(pad) {
             dir[0] += filterDeadzone(pad.axes[0]);
             dir[1] -= filterDeadzone(pad.axes[1]);
-        
+
             moveLookLocked(
                 filterDeadzone(pad.axes[2]) * 25.0,
                 filterDeadzone(pad.axes[3]) * 25.0
             );
             
             for(var j = 0; j < pad.buttons.length; ++j) {
-                if(pad.buttons[j]) { playerMover.jump(); }
+                var button = pad.buttons[j];
+                if (typeof(button) == "number" && button == 1.0) {
+                    playerMover.jump();
+                } else if (button.pressed) {
+                    playerMover.jump();
+                }
             }
         }
     }
