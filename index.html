@@ -4,7 +4,7 @@
     <head>
         <title>Quake 3 WebGL Demo</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-        
+
         <!-- Common Utilities -->
         <script type="text/javascript" src="js/util/game-shim.js"></script>
         <script type="text/javascript" src="js/util/gl-matrix-min.js"></script>
@@ -16,7 +16,7 @@
         <script type="text/javascript" src="js/q3shader.js"></script>
         <script type="text/javascript" src="js/q3glshader.js"></script>
         <script type="text/javascript" src="js/q3movement.js"></script>
-        
+
         <!-- Stylesheet -->
         <link href="css/q3demo.css" rel="stylesheet" type="text/css" />
     </head>
@@ -35,7 +35,7 @@
                 Loading...
             </div>
         </div>
-        
+
         <div id="webgl-error" style="display: none; text-align: center; vertical-align: middle;">
             Sorry, but your browser does not support WebGL or does not have it enabled.<br/>
             To get a WebGL-enabled browser, please see:<br/>
@@ -43,7 +43,7 @@
                 http://get.webgl.org/
             </a>
         </div>
-        
+
         <div id="viewport-info" style="display: none;">
             <div id="controls">
                 <h3>Controls</h3>
@@ -54,11 +54,12 @@
                     <li><b>Respawn:</b> R</li>
                 </ul>
             </div>
-            
+
             <div id="config">
                 <h3>Settings</h3>
                 <ul>
-                    <li><b>Show FPS:</b> <input type="checkbox" id="showFPS" checked="true"/></li>
+                    <li><b>Show FPS:</b> <input type="checkbox" id="showFPS" checked/></li>
+                    <li style="display: none;" id="vrToggle"><b>VR:</b> <input type="checkbox" id="vrMode" /></li>
                     <!--li><b>Background Music:</b> <input type="checkbox" id="playMusic" checked="true"/></li-->
                     <li><b>Fullscreen:</b> <img src="images/fullscreen.png" id="fullscreenBtn"/></li>
                 </ul>

@@ -58,6 +58,17 @@ var xAngle = 0;
 var cameraPosition = [0, 0, 0];
 var onResize = null;
 
+// VR Globals
+var vrEnabled = false;
+var vrHMD = null;
+var vrSensor = null;
+var vrEyeLeft = [3.0, 0.0, 0.0];
+var vrEyeRight = [-3.0, 0.0, 0.0];
+var vrIPDScale = 100.0;
+var vrFovLeft = null;
+var vrFovRight = null;
+var vrPosition = null;
+
 function getQueryVariable(variable) {
     var query = window.location.search.substring(1);
     var vars = query.split("&");
@@ -74,14 +85,14 @@ function getQueryVariable(variable) {
 function initGL(gl, canvas) {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clearDepth(1.0);
-    
+
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
     gl.enable(gl.CULL_FACE);
-    
+
     projectionMat = mat4.create();
     modelViewMat = mat4.create();
-    
+
     initMap(gl);
 }
 
@@ -89,7 +100,7 @@ function initGL(gl, canvas) {
 function initMap(gl) {
     var titleEl = document.getElementById("mapTitle");
     titleEl.innerHtml = mapName.toUpperCase();
-    
+
     var tesselation = getQueryVariable("tesselate");
     if(tesselation) {
         tesselation = parseInt(tesselation, 10);
@@ -123,33 +134,58 @@ function respawnPlayer(index) {
             index = (lastIndex+1)% map.entities.info_player_deathmatch.length;
         }
         lastIndex = index;
-    
+
         var spawnPoint = map.entities.info_player_deathmatch[index];
         playerMover.position = [
             spawnPoint.origin[0],
             spawnPoint.origin[1],
             spawnPoint.origin[2]+30 // Start a little ways above the floor
         ];
-        
+
         playerMover.velocity = [0,0,0];
-        
+
         zAngle = -spawnPoint.angle * (3.1415/180) + (3.1415*0.5); // Negative angle in radians + 90 degrees
         xAngle = 0;
     }
+}
+
+function mat4PerspectiveFromVRFOVPort(fov, zNear, zFar, out) {
+  var xScale = 2.0 / (fov.leftTan + fov.rightTan);
+  var yScale = 2.0 / (fov.upTan + fov.downTan);
+
+  out[0] = xScale;
+  out[4] = 0.0;
+  out[8] = -((fov.leftTan - fov.rightTan) * xScale * 0.5);
+  out[12] = 0.0;
+
+  out[1] = 0.0;
+  out[5] = yScale;
+  out[9] = ((fov.upTan - fov.downTan) * yScale * 0.5);
+  out[13] = 0.0;
+
+  out[2] = 0.0;
+  out[6] = 0.0;
+  out[10] = zFar / (zNear - zFar);
+  out[14] = (zFar * zNear) / (zNear - zFar);
+
+  out[3] = 0.0;
+  out[7] = 0.0;
+  out[11] = -1.0;
+  out[15] = 0.0;
 }
 
 var lastMove = 0;
 
 function onFrame(gl, event) {
     if(!map || !playerMover) { return; }
-    
+
     // Update player movement @ 60hz
     // The while ensures that we update at a fixed rate even if the rendering bogs down
     while(event.elapsed - lastMove >= 16) {
         updateInput(16);
         lastMove += 16;
     }
-    
+
     drawFrame(gl);
 }
 
@@ -158,17 +194,53 @@ function drawFrame(gl) {
     // Clear back buffer but not color buffer (we expect the entire scene to be overwritten)
     gl.depthMask(true);
     gl.clear(gl.DEPTH_BUFFER_BIT);
-    
+
     if(!map || !playerMover) { return; }
-    
-    // Matrix setup
-    mat4.identity(modelViewMat);
-    mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
-    mat4.rotateZ(modelViewMat, zAngle);
-    mat4.translate(modelViewMat, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-30]);
-    
-    // Here's where all the magic happens...
-    map.draw(cameraPosition, modelViewMat, projectionMat);
+
+    if (!vrEnabled) {
+      // Matrix setup
+      mat4.identity(modelViewMat);
+      mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
+      mat4.rotateZ(modelViewMat, zAngle);
+      mat4.translate(modelViewMat, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-30]);
+
+      // Here's where all the magic happens...
+      map.draw(cameraPosition, modelViewMat, projectionMat);
+    } else {
+      var canvas = document.getElementById("viewport");
+
+      // Left Eye
+      gl.viewport(0, 0, canvas.width / 2.0, canvas.height);
+
+      var hmdOrientation = quat4.toMat4([vrPosition.orientation.x, vrPosition.orientation.y, vrPosition.orientation.z, vrPosition.orientation.w]);
+
+      mat4.identity(modelViewMat);
+      mat4.translate(modelViewMat, vrEyeLeft);
+      mat4.multiply(modelViewMat, modelViewMat, hmdOrientation);
+      mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
+      mat4.rotateZ(modelViewMat, zAngle);
+      mat4.translate(modelViewMat, [-vrPosition.position.x, -vrPosition.position.y, -vrPosition.position.z]);
+      mat4.translate(modelViewMat, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-30]);
+
+      mat4PerspectiveFromVRFOVPort(vrFovLeft, 1.0, 4096.0, projectionMat);
+
+      map.draw(cameraPosition, modelViewMat, projectionMat);
+
+      // Right Eye
+      gl.viewport(canvas.width / 2.0, 0, canvas.width / 2.0, canvas.height);
+
+      mat4.identity(modelViewMat);
+      mat4.translate(modelViewMat, vrEyeRight);
+      mat4.multiply(modelViewMat, modelViewMat, hmdOrientation);
+      mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
+      mat4.rotateZ(modelViewMat, zAngle);
+      mat4.translate(modelViewMat, [-vrPosition.position.x, -vrPosition.position.y, -vrPosition.position.z]);
+      mat4.translate(modelViewMat, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-30]);
+
+      mat4PerspectiveFromVRFOVPort(vrFovRight, 1.0, 4096.0, projectionMat);
+
+      map.draw(cameraPosition, modelViewMat, projectionMat);
+    }
 }
 
 var pressed = new Array(128);
@@ -180,12 +252,14 @@ function moveLookLocked(xDelta, yDelta) {
         zAngle += Math.PI*2;
     while (zAngle >= Math.PI*2)
         zAngle -= Math.PI*2;
-            
+
+  if (!vrEnabled) {
     xAngle += yDelta*0.0025;
     while (xAngle < -Math.PI*0.5)
         xAngle = -Math.PI*0.5;
     while (xAngle > Math.PI*0.5)
         xAngle = Math.PI*0.5;
+  }
 }
 
 function filterDeadzone(value) {
@@ -194,9 +268,9 @@ function filterDeadzone(value) {
 
 function updateInput(frameTime) {
     if(!playerMover) { return; }
-        
+
     var dir = [0, 0, 0];
-    
+
     // This is our first person movement code. It's not really pretty, but it works
     if(pressed['W'.charCodeAt(0)]) {
         dir[1] += 1;
@@ -210,7 +284,7 @@ function updateInput(frameTime) {
     if(pressed['D'.charCodeAt(0)]) {
         dir[0] += 1;
     }
-    
+
     var gamepads = [];
     if (navigator.getGamepads) {
         gamepads = navigator.getGamepads();
@@ -228,7 +302,7 @@ function updateInput(frameTime) {
                 filterDeadzone(pad.axes[2]) * 25.0,
                 filterDeadzone(pad.axes[3]) * 25.0
             );
-            
+
             for(var j = 0; j < pad.buttons.length; ++j) {
                 var button = pad.buttons[j];
                 if (typeof(button) == "number" && button == 1.0) {
@@ -239,15 +313,20 @@ function updateInput(frameTime) {
             }
         }
     }
-    
+
+    if (vrSensor) {
+      vrPosition = vrSensor.getState();
+      // TODO: Get Viewer Yaw, add to zAngle
+    }
+
     if(dir[0] !== 0 || dir[1] !== 0 || dir[2] !== 0) {
         mat4.identity(cameraMat);
         mat4.rotateZ(cameraMat, zAngle);
         mat4.inverse(cameraMat);
-        
+
         mat4.multiplyVec3(cameraMat, dir);
     }
-    
+
     // Send desired movement direction to the player mover for collision detection against the map
     playerMover.move(dir, frameTime);
 }
@@ -261,7 +340,7 @@ function initEvents() {
     var lastMoveY = 0;
     var viewport = document.getElementById("viewport");
     var viewportFrame = document.getElementById("viewport-frame");
-    
+
     document.addEventListener("keydown", function(event) {
         if(event.keyCode == 32 && !pressed[32]) {
             playerMover.jump();
@@ -272,48 +351,48 @@ function initEvents() {
              event.keyCode == 'A'.charCodeAt(0) ||
              event.keyCode == 'D'.charCodeAt(0) ||
              event.keyCode == 'R'.charCodeAt(0) ||
-             event.keyCode == 32) && !e.ctrlKey) {
+             event.keyCode == 32) && !event.ctrlKey) {
             event.preventDefault();
         }
     }, false);
-    
+
     document.addEventListener("keypress", function(event) {
         if(event.charCode == 'R'.charCodeAt(0) || event.charCode == 'r'.charCodeAt(0)) {
             respawnPlayer(-1);
         }
     }, false);
-    
+
     document.addEventListener("keyup", function(event) {
         pressed[event.keyCode] = false;
     }, false);
-    
+
     function startLook(x, y) {
         movingModel = true;
-        
+
         lastX = x;
         lastY = y;
     }
-    
+
     function endLook() {
         movingModel = false;
     }
-    
+
     function moveLook(x, y) {
         var xDelta = x - lastX;
         var yDelta = y - lastY;
         lastX = x;
         lastY = y;
-        
+
         if (movingModel) {
             moveLookLocked(xDelta, yDelta);
         }
     }
-    
+
     function startMove(x, y) {
         lastMoveX = x;
         lastMoveY = y;
     }
-    
+
     function moveUpdate(x, y, frameTime) {
         var xDelta = x - lastMoveX;
         var yDelta = y - lastMoveY;
@@ -331,11 +410,11 @@ function initEvents() {
         // Send desired movement direction to the player mover for collision detection against the map
         playerMover.move(dir, frameTime*2);
     }
-    
+
     viewport.addEventListener("click", function(event) {
         viewport.requestPointerLock();
     }, false);
-    
+
     // Mouse handling code
     // When the mouse is pressed it rotates the players view
     viewport.addEventListener("mousedown", function(event) {
@@ -353,7 +432,7 @@ function initEvents() {
             moveLook(event.pageX, event.pageY);
         }
     }, false);
-    
+
     // Touch handling code
     viewport.addEventListener('touchstart', function(event) {
         var touches = event.touches;
@@ -413,18 +492,18 @@ function renderLoop(gl, element, stats) {
     var startTime = new Date().getTime();
     var lastTimestamp = startTime;
     var lastFps = startTime;
-            
+
     function onRequestedFrame(){
         timestamp = new Date().getTime();
-        
+
         window.requestAnimationFrame(onRequestedFrame, element);
 
         stats.begin();
-        
+
         onFrame(gl, {
             timestamp: timestamp,
             elapsed: timestamp - startTime,
-            frameTime: timestamp - lastTimestamp,
+            frameTime: timestamp - lastTimestamp
         });
 
         stats.end();
@@ -455,7 +534,7 @@ function main() {
         gl.viewport(0, 0, canvas.width, canvas.height);
         mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
     }
-    
+
     if(!gl) {
         document.getElementById('viewport-frame').style.display = 'none';
         document.getElementById('webgl-error').style.display = 'block';
@@ -471,20 +550,85 @@ function main() {
 
     var showFPS = document.getElementById("showFPS");
     showFPS.addEventListener("change", function() {
-        if(showFPS.checked) {
-            stats.domElement.style.display = "block";
-        } else {
+        stats.domElement.style.display = showFPS.checked ? "block" : "none";
+    });
+
+    if (navigator.getVRDevices) {
+      // Yay! We support WebVR!
+      function EnumerateVRDevice(devices) {
+          for (var i in devices) {
+              if (devices[i] instanceof HMDVRDevice) {
+                  vrHMD = devices[i];
+
+                  var e = vrHMD.getEyeTranslation("left");
+                  vrEyeLeft = [e.x*vrIPDScale, e.y*vrIPDScale, e.z*vrIPDScale];
+                  e = vrHMD.getEyeTranslation("right");
+                  vrEyeRight = [e.x*vrIPDScale, e.y*vrIPDScale, e.z*vrIPDScale];
+
+                  vrFovLeft = vrHMD.getRecommendedEyeFOVPort("left");
+                  vrFovRight = vrHMD.getRecommendedEyeFOVPort("right");
+
+                  break;
+              }
+          }
+
+          for (var i in devices) {
+              if (devices[i] instanceof PositionSensorVRDevice) {
+                  // If we have an HMD, make sure to get the associated sensor
+                  if (vrHMD == null || vrHMD.hardwareUnitId == devices[i].hardwareUnitId) {
+                      vrSensor = devices[i];
+                      break;
+                  }
+              }
+          }
+
+          if (vrHMD || vrSensor) {
+              var vrToggle = document.getElementById("vrToggle");
+              vrToggle.style.display = "block";
+          }
+      }
+
+      // TODO: Not sure yet if the API will be a callback or a promise.
+      // Why not both! :)
+      var vrPromise = navigator.getVRDevices(EnumerateVRDevice);
+      if (vrPromise) {
+        vrPromise.then(EnumerateVRDevice);
+      }
+    }
+
+    var vrMode = document.getElementById("vrMode");
+    vrMode.addEventListener("change", function() {
+        vrEnabled = vrMode.checked;
+        showFPS.disabled = vrEnabled;
+        if (vrEnabled) {
+            // Showing FPS in VR mode doesn't work, would only appear in one eye
+            // and is a distraction. Use browser native counter if you really care.
             stats.domElement.style.display = "none";
+            if (vrHMD) {
+              var canvas = document.getElementById("viewport");
+              if ("configureRendering" in vrHMD) {
+                vrHMD.configureRendering(canvas);
+              } else if ("xxxToggleElementVR" in vrHMD) {
+                vrHMD.xxxToggleElementVR(canvas);
+              }
+            }
+            xAngle = 0.0;
+        } else {
+            stats.domElement.style.display = showFPS.checked ? "block" : "none";
+            onResize(); // To reset viewport/matrix
+            if (vrHMD) {
+              vrHMD.configureRendering(null);
+            }
         }
     });
-    
+
     /*var playMusic = document.getElementById("playMusic");
     playMusic.addEventListener("change", function() {
         if(map) {
             map.playMusic(playMusic.checked);
         }
     });*/
-    
+
     // Handle fullscreen transition
     var viewportFrame = document.getElementById("viewport-frame");
     document.addEventListener("fullscreenchange", function() {
@@ -493,7 +637,7 @@ function main() {
         }
         onResize();
     }, false);
-    
+
     var button = document.getElementById('fullscreenBtn');
     button.addEventListener('click', function() {
         viewportFrame.requestFullScreen();
