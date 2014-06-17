@@ -212,11 +212,11 @@ function drawFrame(gl) {
       // Left Eye
       gl.viewport(0, 0, canvas.width / 2.0, canvas.height);
 
-      var hmdOrientation = quat4.toMat4([vrPosition.orientation.x, vrPosition.orientation.y, vrPosition.orientation.z, vrPosition.orientation.w]);
+      var hmdOrientation = quat4.toMat4([-vrPosition.orientation.x, -vrPosition.orientation.y, -vrPosition.orientation.z, vrPosition.orientation.w]);
 
       mat4.identity(modelViewMat);
       mat4.translate(modelViewMat, vrEyeLeft);
-      mat4.multiply(modelViewMat, modelViewMat, hmdOrientation);
+      mat4.multiply(modelViewMat, hmdOrientation, modelViewMat);
       mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
       mat4.rotateZ(modelViewMat, zAngle);
       mat4.translate(modelViewMat, [-vrPosition.position.x, -vrPosition.position.y, -vrPosition.position.z]);
@@ -231,7 +231,7 @@ function drawFrame(gl) {
 
       mat4.identity(modelViewMat);
       mat4.translate(modelViewMat, vrEyeRight);
-      mat4.multiply(modelViewMat, modelViewMat, hmdOrientation);
+      mat4.multiply(modelViewMat, hmdOrientation, modelViewMat);
       mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
       mat4.rotateZ(modelViewMat, zAngle);
       mat4.translate(modelViewMat, [-vrPosition.position.x, -vrPosition.position.y, -vrPosition.position.z]);
@@ -314,7 +314,7 @@ function updateInput(frameTime) {
         }
     }
 
-    if (vrSensor) {
+    if (vrEnabled && vrSensor) {
       vrPosition = vrSensor.getState();
       // TODO: Get Viewer Yaw, add to zAngle
     }
@@ -350,7 +350,6 @@ function initEvents() {
              event.keyCode == 'S'.charCodeAt(0) ||
              event.keyCode == 'A'.charCodeAt(0) ||
              event.keyCode == 'D'.charCodeAt(0) ||
-             event.keyCode == 'R'.charCodeAt(0) ||
              event.keyCode == 32) && !event.ctrlKey) {
             event.preventDefault();
         }
@@ -359,6 +358,11 @@ function initEvents() {
     document.addEventListener("keypress", function(event) {
         if(event.charCode == 'R'.charCodeAt(0) || event.charCode == 'r'.charCodeAt(0)) {
             respawnPlayer(-1);
+        }
+        if(event.charCode == 'C'.charCodeAt(0) || event.charCode == 'c'.charCodeAt(0)) {
+            if (vrSensor && "resetSensor" in vrSensor) {
+              vrSensor.resetSensor();
+            }
         }
     }, false);
 
@@ -479,7 +483,7 @@ function getAvailableContext(canvas, contextList) {
     if (canvas.getContext) {
         for(var i = 0; i < contextList.length; ++i) {
             try {
-                var context = canvas.getContext(contextList[i], { antialias:false });
+                var context = canvas.getContext(contextList[i], { antialias:false, preserveDrawingBuffer: true });
                 if(context !== null)
                     return context;
             } catch(ex) { }
