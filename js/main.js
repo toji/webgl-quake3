@@ -525,18 +525,24 @@ function main() {
     var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
 
     onResize = function() {
-        var devicePixelRatio = window.devicePixelRatio || 1;
-
-        if(document.fullscreenElement) {
-            canvas.width = screen.width * devicePixelRatio;
-            canvas.height = screen.height * devicePixelRatio;
+        if (vrEnabled) {
+          // TODO: Only valid for the DK1! Query from HMD!
+          canvas.width = 2000;
+          canvas.height = 1056;
         } else {
-            canvas.width = canvas.clientWidth * devicePixelRatio;
-            canvas.height = canvas.clientHeight * devicePixelRatio;
-        }
+          var devicePixelRatio = window.devicePixelRatio || 1;
 
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
+          if(document.fullscreenElement) {
+              canvas.width = screen.width * devicePixelRatio;
+              canvas.height = screen.height * devicePixelRatio;
+          } else {
+              canvas.width = canvas.clientWidth * devicePixelRatio;
+              canvas.height = canvas.clientHeight * devicePixelRatio;
+          }
+
+          gl.viewport(0, 0, canvas.width, canvas.height);
+          mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
+        }
     }
 
     if(!gl) {
@@ -619,11 +625,12 @@ function main() {
             xAngle = 0.0;
         } else {
             stats.domElement.style.display = showFPS.checked ? "block" : "none";
-            onResize(); // To reset viewport/matrix
             if (vrHMD) {
               vrHMD.configureRendering(null);
             }
         }
+
+        onResize();
     });
 
     /*var playMusic = document.getElementById("playMusic");
