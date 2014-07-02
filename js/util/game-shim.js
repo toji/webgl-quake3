@@ -40,11 +40,11 @@
             gamepad: true
         }
     };
-    
+
     //=====================
     // Animation
     //=====================
-    
+
     // window.requestAnimaionFrame, credit: Erik Moller
     // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
     (function() {
@@ -78,7 +78,7 @@
                 clearTimeout(id);
             };
         }
-        
+
         // window.animationStartTime
         if(!window.animationStartTime) {
             getter = (function() {
@@ -97,11 +97,11 @@
             });
         }
     }());
-    
+
     //=====================
     // Fullscreen
     //=====================
-    
+
     // document.isFullScreen
     if(!document.hasOwnProperty("fullscreenEnabled")) {
         getter = (function() {
@@ -116,13 +116,13 @@
             GameShim.supports.fullscreen = false;
             return function() { return false; }; // not supported, never fullscreen
         })();
-        
+
         Object.defineProperty(document, "fullscreenEnabled", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
     }
-    
+
     if(!document.hasOwnProperty("fullscreenElement")) {
         getter = (function() {
             // These are the functions that match the spec, and should be preferred
@@ -134,13 +134,13 @@
             }
             return function() { return null; }; // not supported
         })();
-        
+
         Object.defineProperty(document, "fullscreenElement", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
     }
-    
+
     // Document event: fullscreenchange
     function fullscreenchange(oldEvent) {
         var newEvent = document.createEvent("CustomEvent");
@@ -150,7 +150,7 @@
     }
     document.addEventListener("webkitfullscreenchange", fullscreenchange, false);
     document.addEventListener("mozfullscreenchange", fullscreenchange, false);
-    
+
     // Document event: fullscreenerror
     function fullscreenerror(oldEvent) {
         var newEvent = document.createEvent("CustomEvent");
@@ -160,26 +160,32 @@
     }
     document.addEventListener("webkitfullscreenerror", fullscreenerror, false);
     document.addEventListener("mozfullscreenerror", fullscreenerror, false);
-    
+
     // element.requestFullScreen
     if(!elementPrototype.requestFullScreen) {
         elementPrototype.requestFullScreen = (function() {
+            if(elementPrototype.webkitRequestFullscreen) {
+                return function(options) {
+                    this.webkitRequestFullscreen(options);
+                };
+            }
+
             if(elementPrototype.webkitRequestFullScreen) {
-                return function() {
-                    this.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+                return function(options) {
+                    this.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT, options);
                 };
             }
 
             if(elementPrototype.mozRequestFullScreen) {
-                return function() {
-                    this.mozRequestFullScreen();
+                return function(options) {
+                    this.mozRequestFullScreen(options);
                 };
             }
-            
+
             return function(){ /* unsupported, fail silently */ };
         })();
     }
-    
+
     // document.exitFullscreen
     if(!document.exitFullscreen) {
         document.exitFullscreen = (function() {
@@ -188,27 +194,27 @@
                     function(){ /* unsupported, fail silently */ };
         })();
     }
-    
+
     //=====================
     // Pointer Lock
     //=====================
-    
+
     var mouseEventPrototype = global.MouseEvent.prototype;
-    
+
     if(!("movementX" in mouseEventPrototype)) {
         Object.defineProperty(mouseEventPrototype, "movementX", {
             enumerable: true, configurable: false, writeable: false,
             get: function() { return this.webkitMovementX || this.mozMovementX || 0; }
         });
     }
-    
+
     if(!("movementY" in mouseEventPrototype)) {
         Object.defineProperty(mouseEventPrototype, "movementY", {
             enumerable: true, configurable: false, writeable: false,
             get: function() { return this.webkitMovementY || this.mozMovementY || 0; }
         });
     }
-    
+
     // Navigator pointer is not the right interface according to spec.
     // Here for backwards compatibility only
     if(!navigator.pointer) {
@@ -245,7 +251,7 @@
             if("mozPointerLockEnabled" in document) {
                 return function() { return document.mozPointerLockEnabled; };
             }
-    
+
             // Early versions of the spec managed mouselock through the pointer object
             if(navigator.pointer) {
                 if(typeof(navigator.pointer.isLocked) === "boolean") {
@@ -263,13 +269,13 @@
             GameShim.supports.pointerLock = false;
             return function() { return false; }; // not supported, never locked
         })();
-        
+
         Object.defineProperty(document, "pointerLockEnabled", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
     }
-    
+
     if(!document.hasOwnProperty("pointerLockElement")) {
         getter = (function() {
             // These are the functions that match the spec, and should be preferred
@@ -279,16 +285,16 @@
             if("mozPointerLockElement" in document) {
                 return function() { return document.mozPointerLockElement; };
             }
-            
+
             return function() { return null; }; // not supported
         })();
-        
+
         Object.defineProperty(document, "pointerLockElement", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
     }
-    
+
     // element.requestPointerLock
     if(!elementPrototype.requestPointerLock) {
         elementPrototype.requestPointerLock = (function() {
@@ -302,7 +308,7 @@
                     };
         })();
     }
-    
+
     // document.exitPointerLock
     if(!document.exitPointerLock) {
         document.exitPointerLock = (function() {
@@ -316,11 +322,11 @@
                     };
         })();
     }
-    
+
     //=====================
     // Gamepad
     //=====================
-    
+
     if(!navigator.gamepads) {
         getter = (function() {
             // These are the functions that match the spec, and should be preferred
@@ -330,16 +336,16 @@
             if("mozGamepads" in navigator) {
                 return function() { return navigator.mozGamepads; };
             }
-            
+
             GameShim.supports.gamepad = false;
             var gamepads = [];
             return function() { return gamepads; }; // not supported, return empty array
         })();
-        
+
         Object.defineProperty(navigator, "gamepads", {
             enumerable: true, configurable: false, writeable: false,
             get: getter
         });
     }
-    
+
 })((typeof(exports) != 'undefined') ? global : window); // Account for CommonJS environments

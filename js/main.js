@@ -62,9 +62,12 @@ var onResize = null;
 var vrEnabled = false;
 var vrHMD = null;
 var vrSensor = null;
-var vrEyeLeft = [3.0, 0.0, 0.0];
-var vrEyeRight = [-3.0, 0.0, 0.0];
-var vrIPDScale = 100.0;
+
+// These values are in meters
+var vrEyeLeft = [0.03, 0.0, 0.0];
+var vrEyeRight = [-0.03, 0.0, 0.0];
+var playerHeight = 57; // Roughly where my eyes sit (1.78 meters off the ground)
+var vrIPDScale = 32.0; // There are 32 units per meter in Quake 3
 var vrFovLeft = null;
 var vrFovRight = null;
 var vrPosition = null;
@@ -149,18 +152,65 @@ function respawnPlayer(index) {
     }
 }
 
-function mat4PerspectiveFromVRFOVPort(fov, zNear, zFar, out) {
-  var xScale = 2.0 / (fov.leftTan + fov.rightTan);
-  var yScale = 2.0 / (fov.upTan + fov.downTan);
+function eulerFromQuaternion(out, q, order) {
+  function clamp(value, min, max) {
+    return (value < min ? min : (value > max ? max : value));
+  }
+  // Borrowed from Three.JS :)
+  // q is assumed to be normalized
+  // http://www.mathworks.com/matlabcentral/fileexchange/20696-function-to-convert-between-dcm-euler-angles-quaternions-and-euler-vectors/content/SpinCalc.m
+  var sqx = q.x * q.x;
+  var sqy = q.y * q.y;
+  var sqz = q.z * q.z;
+  var sqw = q.w * q.w;
+
+  if ( order === 'XYZ' ) {
+    out[0] = Math.atan2( 2 * ( q.x * q.w - q.y * q.z ), ( sqw - sqx - sqy + sqz ) );
+    out[1] = Math.asin(  clamp( 2 * ( q.x * q.z + q.y * q.w ), -1, 1 ) );
+    out[2] = Math.atan2( 2 * ( q.z * q.w - q.x * q.y ), ( sqw + sqx - sqy - sqz ) );
+  } else if ( order ===  'YXZ' ) {
+    out[0] = Math.asin(  clamp( 2 * ( q.x * q.w - q.y * q.z ), -1, 1 ) );
+    out[1] = Math.atan2( 2 * ( q.x * q.z + q.y * q.w ), ( sqw - sqx - sqy + sqz ) );
+    out[2] = Math.atan2( 2 * ( q.x * q.y + q.z * q.w ), ( sqw - sqx + sqy - sqz ) );
+  } else if ( order === 'ZXY' ) {
+    out[0] = Math.asin(  clamp( 2 * ( q.x * q.w + q.y * q.z ), -1, 1 ) );
+    out[1] = Math.atan2( 2 * ( q.y * q.w - q.z * q.x ), ( sqw - sqx - sqy + sqz ) );
+    out[2] = Math.atan2( 2 * ( q.z * q.w - q.x * q.y ), ( sqw - sqx + sqy - sqz ) );
+  } else if ( order === 'ZYX' ) {
+    out[0] = Math.atan2( 2 * ( q.x * q.w + q.z * q.y ), ( sqw - sqx - sqy + sqz ) );
+    out[1] = Math.asin(  clamp( 2 * ( q.y * q.w - q.x * q.z ), -1, 1 ) );
+    out[2] = Math.atan2( 2 * ( q.x * q.y + q.z * q.w ), ( sqw + sqx - sqy - sqz ) );
+  } else if ( order === 'YZX' ) {
+    out[0] = Math.atan2( 2 * ( q.x * q.w - q.z * q.y ), ( sqw - sqx + sqy - sqz ) );
+    out[1] = Math.atan2( 2 * ( q.y * q.w - q.x * q.z ), ( sqw + sqx - sqy - sqz ) );
+    out[2] = Math.asin(  clamp( 2 * ( q.x * q.y + q.z * q.w ), -1, 1 ) );
+  } else if ( order === 'XZY' ) {
+    out[0] = Math.atan2( 2 * ( q.x * q.w + q.y * q.z ), ( sqw - sqx + sqy - sqz ) );
+    out[1] = Math.atan2( 2 * ( q.x * q.z + q.y * q.w ), ( sqw + sqx - sqy - sqz ) );
+    out[2] = Math.asin(  clamp( 2 * ( q.z * q.w - q.x * q.y ), -1, 1 ) );
+  } else {
+    console.log('No order given for quaternion to euler conversion.');
+    return;
+  }
+}
+
+function mat4PerspectiveFromVRFieldOfView(fov, zNear, zFar, out) {
+  var upTan = Math.tan(fov.upDegrees * Math.PI/180.0);
+  var downTan = Math.tan(fov.downDegrees * Math.PI/180.0);
+  var leftTan = Math.tan(fov.leftDegrees * Math.PI/180.0);
+  var rightTan = Math.tan(fov.rightDegrees * Math.PI/180.0);
+
+  var xScale = 2.0 / (leftTan + rightTan);
+  var yScale = 2.0 / (upTan + downTan);
 
   out[0] = xScale;
   out[4] = 0.0;
-  out[8] = -((fov.leftTan - fov.rightTan) * xScale * 0.5);
+  out[8] = -((leftTan - rightTan) * xScale * 0.5);
   out[12] = 0.0;
 
   out[1] = 0.0;
   out[5] = yScale;
-  out[9] = ((fov.upTan - fov.downTan) * yScale * 0.5);
+  out[9] = ((upTan - downTan) * yScale * 0.5);
   out[13] = 0.0;
 
   out[2] = 0.0;
@@ -189,6 +239,27 @@ function onFrame(gl, event) {
     drawFrame(gl);
 }
 
+var hmdOrientationMatrix = mat4.create();
+function getViewMatrix(out, translated, vrPosition, eyeOffset) {
+  mat4.identity(out);
+
+  if (vrPosition) {
+    quat4.toMat4([-vrPosition.orientation.x, -vrPosition.orientation.y, -vrPosition.orientation.z, vrPosition.orientation.w], hmdOrientationMatrix);
+    if (eyeOffset) {
+      mat4.translate(out, [eyeOffset[0]*vrIPDScale, eyeOffset[1]*vrIPDScale, eyeOffset[2]*vrIPDScale]);
+    }
+    mat4.multiply(out, hmdOrientationMatrix, out);
+  }
+  mat4.rotateX(out, xAngle-Math.PI/2);
+  mat4.rotateZ(out, zAngle);
+  if (translated) {
+    if (vrPosition) {
+      mat4.translate(out, [-vrPosition.position.x*vrIPDScale, -vrPosition.position.y*vrIPDScale, -vrPosition.position.z*vrIPDScale]);
+    }
+    mat4.translate(out, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-playerHeight]);
+  }
+}
+
 // Draw a single frame
 function drawFrame(gl) {
     // Clear back buffer but not color buffer (we expect the entire scene to be overwritten)
@@ -199,10 +270,7 @@ function drawFrame(gl) {
 
     if (!vrEnabled) {
       // Matrix setup
-      mat4.identity(modelViewMat);
-      mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
-      mat4.rotateZ(modelViewMat, zAngle);
-      mat4.translate(modelViewMat, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-30]);
+      getViewMatrix(modelViewMat, true);
 
       // Here's where all the magic happens...
       map.draw(cameraPosition, modelViewMat, projectionMat);
@@ -211,33 +279,15 @@ function drawFrame(gl) {
 
       // Left Eye
       gl.viewport(0, 0, canvas.width / 2.0, canvas.height);
-
-      var hmdOrientation = quat4.toMat4([-vrPosition.orientation.x, -vrPosition.orientation.y, -vrPosition.orientation.z, vrPosition.orientation.w]);
-
-      mat4.identity(modelViewMat);
-      mat4.translate(modelViewMat, vrEyeLeft);
-      mat4.multiply(modelViewMat, hmdOrientation, modelViewMat);
-      mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
-      mat4.rotateZ(modelViewMat, zAngle);
-      mat4.translate(modelViewMat, [-vrPosition.position.x, -vrPosition.position.y, -vrPosition.position.z]);
-      mat4.translate(modelViewMat, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-30]);
-
-      mat4PerspectiveFromVRFOVPort(vrFovLeft, 1.0, 4096.0, projectionMat);
+      getViewMatrix(modelViewMat, true, vrPosition, vrEyeLeft);
+      mat4PerspectiveFromVRFieldOfView(vrFovLeft, 1.0, 4096.0, projectionMat);
 
       map.draw(cameraPosition, modelViewMat, projectionMat);
 
       // Right Eye
       gl.viewport(canvas.width / 2.0, 0, canvas.width / 2.0, canvas.height);
-
-      mat4.identity(modelViewMat);
-      mat4.translate(modelViewMat, vrEyeRight);
-      mat4.multiply(modelViewMat, hmdOrientation, modelViewMat);
-      mat4.rotateX(modelViewMat, xAngle-Math.PI/2);
-      mat4.rotateZ(modelViewMat, zAngle);
-      mat4.translate(modelViewMat, [-vrPosition.position.x, -vrPosition.position.y, -vrPosition.position.z]);
-      mat4.translate(modelViewMat, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-30]);
-
-      mat4PerspectiveFromVRFOVPort(vrFovRight, 1.0, 4096.0, projectionMat);
+      getViewMatrix(modelViewMat, true, vrPosition, vrEyeRight);
+      mat4PerspectiveFromVRFieldOfView(vrFovRight, 1.0, 4096.0, projectionMat);
 
       map.draw(cameraPosition, modelViewMat, projectionMat);
     }
@@ -264,6 +314,25 @@ function moveLookLocked(xDelta, yDelta) {
 
 function filterDeadzone(value) {
     return Math.abs(value) > 0.35 ? value : 0;
+}
+
+var vrEuler = vec3.create();
+function moveViewOriented(dir, frameTime) {
+  if(dir[0] !== 0 || dir[1] !== 0 || dir[2] !== 0) {
+      mat4.identity(cameraMat);
+      if (vrEnabled) {
+        eulerFromQuaternion(vrEuler, vrPosition.orientation, 'YXZ');
+        mat4.rotateZ(cameraMat, zAngle - vrEuler[1]);
+      } else {
+        mat4.rotateZ(cameraMat, zAngle);
+      }
+      mat4.inverse(cameraMat);
+
+      mat4.multiplyVec3(cameraMat, dir);
+  }
+
+  // Send desired movement direction to the player mover for collision detection against the map
+  playerMover.move(dir, frameTime);
 }
 
 function updateInput(frameTime) {
@@ -316,19 +385,9 @@ function updateInput(frameTime) {
 
     if (vrEnabled && vrSensor) {
       vrPosition = vrSensor.getState();
-      // TODO: Get Viewer Yaw, add to zAngle
     }
 
-    if(dir[0] !== 0 || dir[1] !== 0 || dir[2] !== 0) {
-        mat4.identity(cameraMat);
-        mat4.rotateZ(cameraMat, zAngle);
-        mat4.inverse(cameraMat);
-
-        mat4.multiplyVec3(cameraMat, dir);
-    }
-
-    // Send desired movement direction to the player mover for collision detection against the map
-    playerMover.move(dir, frameTime);
+    moveViewOriented(dir, frameTime);
 }
 
 // Set up event handling
@@ -363,6 +422,12 @@ function initEvents() {
             if (vrSensor && "resetSensor" in vrSensor) {
               vrSensor.resetSensor();
             }
+        }
+        if(event.charCode == '='.charCodeAt(0)) {
+          vrIPDScale += 5.0;
+        }
+        if(event.charCode == '-'.charCodeAt(0)) {
+          vrIPDScale -= 5.0;
         }
     }, false);
 
@@ -405,14 +470,7 @@ function initEvents() {
 
         var dir = [xDelta, yDelta * -1, 0];
 
-        mat4.identity(cameraMat);
-        mat4.rotateZ(cameraMat, zAngle);
-        mat4.inverse(cameraMat);
-
-        mat4.multiplyVec3(cameraMat, dir);
-
-        // Send desired movement direction to the player mover for collision detection against the map
-        playerMover.move(dir, frameTime*2);
+        moveViewOriented(dir, frameTime*2);
     }
 
     viewport.addEventListener("click", function(event) {
@@ -483,7 +541,7 @@ function getAvailableContext(canvas, contextList) {
     if (canvas.getContext) {
         for(var i = 0; i < contextList.length; ++i) {
             try {
-                var context = canvas.getContext(contextList[i], { antialias:false, preserveDrawingBuffer: true });
+                var context = canvas.getContext(contextList[i], { antialias:false });
                 if(context !== null)
                     return context;
             } catch(ex) { }
@@ -526,9 +584,14 @@ function main() {
 
     onResize = function() {
         if (vrEnabled) {
-          // TODO: Only valid for the DK1! Query from HMD!
-          canvas.width = 2000;
-          canvas.height = 1056;
+          if("renderTargetSize" in vrHMD) {
+            canvas.width = vrHMD.renderTargetSize.width;
+            canvas.height = vrHMD.renderTargetSize.height;
+          } else {
+            // Hard-coded Oculus DK1 values.
+            canvas.width = 2000;
+            canvas.height = 1056;
+          }
         } else {
           var devicePixelRatio = window.devicePixelRatio || 1;
 
@@ -563,75 +626,45 @@ function main() {
         stats.domElement.style.display = showFPS.checked ? "block" : "none";
     });
 
-    if (navigator.getVRDevices) {
-      // Yay! We support WebVR!
-      function EnumerateVRDevice(devices) {
-          for (var i in devices) {
-              if (devices[i] instanceof HMDVRDevice) {
-                  vrHMD = devices[i];
+    function EnumerateVRDevice(devices) {
+        // Yay! We support WebVR!
+        for (var i = 0; i < devices.length; ++i) {
+            if (devices[i] instanceof HMDVRDevice) {
+                vrHMD = devices[i];
 
-                  var e = vrHMD.getEyeTranslation("left");
-                  vrEyeLeft = [e.x*vrIPDScale, e.y*vrIPDScale, e.z*vrIPDScale];
-                  e = vrHMD.getEyeTranslation("right");
-                  vrEyeRight = [e.x*vrIPDScale, e.y*vrIPDScale, e.z*vrIPDScale];
+                var e = vrHMD.getEyeTranslation("left");
+                vrEyeLeft = [e.x, e.y, e.z];
+                e = vrHMD.getEyeTranslation("right");
+                vrEyeRight = [e.x, e.y, e.z];
 
-                  vrFovLeft = vrHMD.getRecommendedEyeFOVPort("left");
-                  vrFovRight = vrHMD.getRecommendedEyeFOVPort("right");
+                vrFovLeft = vrHMD.getRecommendedEyeFieldOfView("left");
+                vrFovRight = vrHMD.getRecommendedEyeFieldOfView("right");
 
-                  break;
-              }
-          }
-
-          for (var i in devices) {
-              if (devices[i] instanceof PositionSensorVRDevice) {
-                  // If we have an HMD, make sure to get the associated sensor
-                  if (vrHMD == null || vrHMD.hardwareUnitId == devices[i].hardwareUnitId) {
-                      vrSensor = devices[i];
-                      break;
-                  }
-              }
-          }
-
-          if (vrHMD || vrSensor) {
-              var vrToggle = document.getElementById("vrToggle");
-              vrToggle.style.display = "block";
-          }
-      }
-
-      // TODO: Not sure yet if the API will be a callback or a promise.
-      // Why not both! :)
-      var vrPromise = navigator.getVRDevices(EnumerateVRDevice);
-      if (vrPromise) {
-        vrPromise.then(EnumerateVRDevice);
-      }
-    }
-
-    var vrMode = document.getElementById("vrMode");
-    vrMode.addEventListener("change", function() {
-        vrEnabled = vrMode.checked;
-        showFPS.disabled = vrEnabled;
-        if (vrEnabled) {
-            // Showing FPS in VR mode doesn't work, would only appear in one eye
-            // and is a distraction. Use browser native counter if you really care.
-            stats.domElement.style.display = "none";
-            if (vrHMD) {
-              var canvas = document.getElementById("viewport");
-              if ("configureRendering" in vrHMD) {
-                vrHMD.configureRendering(canvas);
-              } else if ("xxxToggleElementVR" in vrHMD) {
-                vrHMD.xxxToggleElementVR(canvas);
-              }
-            }
-            xAngle = 0.0;
-        } else {
-            stats.domElement.style.display = showFPS.checked ? "block" : "none";
-            if (vrHMD) {
-              vrHMD.configureRendering(null);
+                break;
             }
         }
 
-        onResize();
-    });
+        for (var i = 0; i < devices.length; ++i) {
+            if (devices[i] instanceof PositionSensorVRDevice) {
+                // If we have an HMD, make sure to get the associated sensor
+                if (vrHMD == null || vrHMD.hardwareUnitId == devices[i].hardwareUnitId) {
+                    vrSensor = devices[i];
+                    break;
+                }
+            }
+        }
+
+        if (vrHMD || vrSensor) {
+            var vrToggle = document.getElementById("vrToggle");
+            vrToggle.style.display = "block";
+        }
+    }
+
+    if (navigator.getVRDevices) {
+      navigator.getVRDevices().then(EnumerateVRDevice);
+    } else if (navigator.mozGetVRDevices) {
+      navigator.mozGetVRDevices(EnumerateVRDevice);
+    }
 
     /*var playMusic = document.getElementById("playMusic");
     playMusic.addEventListener("change", function() {
@@ -642,16 +675,29 @@ function main() {
 
     // Handle fullscreen transition
     var viewportFrame = document.getElementById("viewport-frame");
+    var viewport = document.getElementById("viewport");
     document.addEventListener("fullscreenchange", function() {
         if(document.fullscreenEnabled) {
-            viewportFrame.requestPointerLock(); // Attempt to lock the mouse automatically on fullscreen
+            viewport.requestPointerLock(); // Attempt to lock the mouse automatically on fullscreen
+        } else {
+          vrEnabled = false;
         }
         onResize();
     }, false);
 
+    // Fullscreen
     var button = document.getElementById('fullscreenBtn');
     button.addEventListener('click', function() {
         viewportFrame.requestFullScreen();
     }, false);
+
+    // VR
+    var vrBtn = document.getElementById("vrBtn");
+    vrBtn.addEventListener("click", function() {
+        vrEnabled = true;
+        xAngle = 0.0;
+        viewport.requestFullScreen({ vrDisplay: vrHMD });
+    });
+
 }
 window.addEventListener("load", main); // Fire this once the page is loaded up
