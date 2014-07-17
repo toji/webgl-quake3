@@ -584,7 +584,12 @@ function main() {
 
     onResize = function() {
         if (vrEnabled) {
-          if("renderTargetSize" in vrHMD) {
+          if ("getRecommendedRenderTargetSize" in vrHMD) {
+            var renderTargetSize = vrHMD.getRecommendedRenderTargetSize();
+            canvas.width = renderTargetSize.width;
+            canvas.height = renderTargetSize.height;
+          } else if("renderTargetSize" in vrHMD) {
+            // Deprecated. Do not use!
             canvas.width = vrHMD.renderTargetSize.width;
             canvas.height = vrHMD.renderTargetSize.height;
           } else {
