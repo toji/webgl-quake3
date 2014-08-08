@@ -254,7 +254,7 @@ function getViewMatrix(out, translated, vrPosition, eyeOffset) {
   mat4.rotateZ(out, zAngle);
   if (translated) {
     if (vrPosition) {
-      mat4.translate(out, [-vrPosition.position.x*vrIPDScale, -vrPosition.position.y*vrIPDScale, -vrPosition.position.z*vrIPDScale]);
+      mat4.translate(out, [vrPosition.position.x*vrIPDScale, -vrPosition.position.z*vrIPDScale, -vrPosition.position.y*vrIPDScale]);
     }
     mat4.translate(out, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-playerHeight]);
   }
@@ -372,7 +372,7 @@ function updateInput(frameTime) {
                 filterDeadzone(pad.axes[3]) * 25.0
             );
 
-            for(var j = 0; j < pad.buttons.length; ++j) {
+            for(var j = 0; j < Math.max(pad.buttons.length, 4); ++j) {
                 var button = pad.buttons[j];
                 if (typeof(button) == "number" && button == 1.0) {
                     playerMover.jump();
