@@ -249,13 +249,13 @@ function getViewMatrix(out, translated, vrPosition, eyeOffset) {
       mat4.translate(out, [eyeOffset[0]*vrIPDScale, eyeOffset[1]*vrIPDScale, eyeOffset[2]*vrIPDScale]);
     }
     mat4.multiply(out, hmdOrientationMatrix, out);
+    if (translated) {
+      mat4.translate(out, [-vrPosition.position.x*vrIPDScale, -vrPosition.position.y*vrIPDScale, -vrPosition.position.z*vrIPDScale]);
+    }
   }
   mat4.rotateX(out, xAngle-Math.PI/2);
   mat4.rotateZ(out, zAngle);
   if (translated) {
-    if (vrPosition) {
-      mat4.translate(out, [vrPosition.position.x*vrIPDScale, -vrPosition.position.z*vrIPDScale, -vrPosition.position.y*vrIPDScale]);
-    }
     mat4.translate(out, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-playerHeight]);
   }
 }
