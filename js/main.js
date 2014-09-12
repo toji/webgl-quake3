@@ -64,8 +64,8 @@ var vrHMD = null;
 var vrSensor = null;
 
 // These values are in meters
-var vrEyeLeft = [0.03, 0.0, 0.0];
-var vrEyeRight = [-0.03, 0.0, 0.0];
+var vrEyeLeft = [-0.03, 0.0, 0.0];
+var vrEyeRight = [0.03, 0.0, 0.0];
 var playerHeight = 57; // Roughly where my eyes sit (1.78 meters off the ground)
 var vrIPDScale = 32.0; // There are 32 units per meter in Quake 3
 var vrFovLeft = null;
@@ -246,7 +246,7 @@ function getViewMatrix(out, translated, vrPosition, eyeOffset) {
   if (vrPosition) {
     quat4.toMat4([-vrPosition.orientation.x, -vrPosition.orientation.y, -vrPosition.orientation.z, vrPosition.orientation.w], hmdOrientationMatrix);
     if (eyeOffset) {
-      mat4.translate(out, [eyeOffset[0]*vrIPDScale, eyeOffset[1]*vrIPDScale, eyeOffset[2]*vrIPDScale]);
+      mat4.translate(out, [-eyeOffset[0]*vrIPDScale, -eyeOffset[1]*vrIPDScale, -eyeOffset[2]*vrIPDScale]);
     }
     mat4.multiply(out, hmdOrientationMatrix, out);
     if (translated) {
@@ -419,8 +419,8 @@ function initEvents() {
             respawnPlayer(-1);
         }
         if(event.charCode == 'C'.charCodeAt(0) || event.charCode == 'c'.charCodeAt(0)) {
-            if (vrSensor && "resetSensor" in vrSensor) {
-              vrSensor.resetSensor();
+            if (vrSensor && "zeroSensor" in vrSensor) {
+              vrSensor.zeroSensor();
             }
         }
         if(event.charCode == '='.charCodeAt(0)) {
@@ -584,7 +584,12 @@ function main() {
 
     onResize = function() {
         if (vrEnabled) {
-          if ("getRecommendedRenderTargetSize" in vrHMD) {
+          if ("getRecommendedEyeRenderRect" in vrHMD) {
+            var leftEyeViewport = vrHMD.getRecommendedEyeRenderRect("left");
+            var rightEyeViewport = vrHMD.getRecommendedEyeRenderRect("right");
+            canvas.width = leftEyeViewport.width + rightEyeViewport.width;
+            canvas.height = Math.max(leftEyeViewport.height, rightEyeViewport.height);
+          } else if ("getRecommendedRenderTargetSize" in vrHMD) {
             var renderTargetSize = vrHMD.getRecommendedRenderTargetSize();
             canvas.width = renderTargetSize.width;
             canvas.height = renderTargetSize.height;
