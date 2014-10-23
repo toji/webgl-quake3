@@ -62,6 +62,7 @@ var onResize = null;
 var vrEnabled = false;
 var vrHMD = null;
 var vrSensor = null;
+var vrTimewarp = true;
 
 // These values are in meters
 var vrEyeLeft = [-0.03, 0.0, 0.0];
@@ -71,6 +72,9 @@ var vrIPDScale = 32.0; // There are 32 units per meter in Quake 3
 var vrFovLeft = null;
 var vrFovRight = null;
 var vrPosition = null;
+
+var SKIP_FRAMES = 0;
+var REPEAT_FRAMES = 1;
 
 function getQueryVariable(variable) {
     var query = window.location.search.substring(1);
@@ -236,7 +240,9 @@ function onFrame(gl, event) {
         lastMove += 16;
     }
 
-    drawFrame(gl);
+    // For great laggage!
+    for (var i = 0; i < REPEAT_FRAMES; ++i)
+      drawFrame(gl);
 }
 
 var hmdOrientationMatrix = mat4.create();
@@ -423,6 +429,12 @@ function initEvents() {
               vrSensor.zeroSensor();
             }
         }
+        if(event.charCode == 'T'.charCodeAt(0) || event.charCode == 't'.charCodeAt(0)) {
+            if (vrHMD && "setTimewarp" in vrHMD) {
+              vrTimewarp = !vrTimewarp;
+              vrHMD.setTimewarp(vrTimewarp);
+            }
+        }
         if(event.charCode == '='.charCodeAt(0)) {
           vrIPDScale += 5.0;
         }
@@ -555,10 +567,16 @@ function renderLoop(gl, element, stats) {
     var lastTimestamp = startTime;
     var lastFps = startTime;
 
+    var frameId = 0;
+
     function onRequestedFrame(){
         timestamp = new Date().getTime();
 
         window.requestAnimationFrame(onRequestedFrame, element);
+
+        frameId++;
+        if (SKIP_FRAMES != 0 && frameId % SKIP_FRAMES != 0)
+          return;
 
         stats.begin();
 
