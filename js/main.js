@@ -199,10 +199,19 @@ function eulerFromQuaternion(out, q, order) {
 }
 
 function mat4PerspectiveFromVRFieldOfView(fov, zNear, zFar, out) {
-  var upTan = Math.tan(fov.upDegrees * Math.PI/180.0);
-  var downTan = Math.tan(fov.downDegrees * Math.PI/180.0);
-  var leftTan = Math.tan(fov.leftDegrees * Math.PI/180.0);
-  var rightTan = Math.tan(fov.rightDegrees * Math.PI/180.0);
+  var upTan, downTan, leftTan, rightTan;
+  if (fov == null) {
+    // If no FOV is given plug in some dummy values
+    upTan = Math.tan(50 * Math.PI/180.0);
+    downTan = Math.tan(50 * Math.PI/180.0);
+    leftTan = Math.tan(45 * Math.PI/180.0);
+    rightTan = Math.tan(45 * Math.PI/180.0);
+  } else {
+    upTan = Math.tan(fov.upDegrees * Math.PI/180.0);
+    downTan = Math.tan(fov.downDegrees * Math.PI/180.0);
+    leftTan = Math.tan(fov.leftDegrees * Math.PI/180.0);
+    rightTan = Math.tan(fov.rightDegrees * Math.PI/180.0);
+  }
 
   var xScale = 2.0 / (leftTan + rightTan);
   var yScale = 2.0 / (upTan + downTan);
@@ -665,8 +674,8 @@ function main() {
                 e = vrHMD.getEyeTranslation("right");
                 vrEyeRight = [e.x, e.y, e.z];
 
-                vrFovLeft = vrHMD.getRecommendedEyeFieldOfView("left");
-                vrFovRight = vrHMD.getRecommendedEyeFieldOfView("right");
+                vrFovLeft = vrHMD.getCurrentEyeFieldOfView("left");
+                vrFovRight = vrHMD.getCurrentEyeFieldOfView("right");
 
                 break;
             }
@@ -685,6 +694,8 @@ function main() {
         if (vrHMD || vrSensor) {
             var vrToggle = document.getElementById("vrToggle");
             vrToggle.style.display = "block";
+            var mobileVrBtn = document.getElementById("mobileVrBtn");
+            mobileVrBtn.style.display = "block";
         }
     }
 
@@ -720,12 +731,15 @@ function main() {
     }, false);
 
     // VR
-    var vrBtn = document.getElementById("vrBtn");
-    vrBtn.addEventListener("click", function() {
+    function goVrFullscreen() {
         vrEnabled = true;
         xAngle = 0.0;
         viewport.requestFullScreen({ vrDisplay: vrHMD });
-    });
+    }
+    var vrBtn = document.getElementById("vrBtn");
+    var mobileVrBtn = document.getElementById("mobileVrBtn");
+    vrBtn.addEventListener("click", goVrFullscreen);
+    mobileVrBtn.addEventListener("click", goVrFullscreen);
 
 }
 window.addEventListener("load", main); // Fire this once the page is loaded up
