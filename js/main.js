@@ -602,21 +602,18 @@ function main() {
 
     onResize = function() {
         if (vrEnabled) {
-          if ("getRecommendedEyeRenderRect" in vrHMD) {
+          if ("getEyeParameters" in vrHMD) {
+            var leftEyeViewport = vrHMD.getEyeParameters("left").renderRect;
+            var rightEyeViewport = vrHMD.getEyeParameters("right").renderRect;
+            canvas.width = rightEyeViewport.left + rightEyeViewport.width;
+            canvas.height = Math.max(leftEyeViewport.height, rightEyeViewport.height);
+          } else if ("getRecommendedEyeRenderRect" in vrHMD) {
             var leftEyeViewport = vrHMD.getRecommendedEyeRenderRect("left");
             var rightEyeViewport = vrHMD.getRecommendedEyeRenderRect("right");
-            canvas.width = leftEyeViewport.width + rightEyeViewport.width;
+            canvas.width = rightEyeViewport.left + rightEyeViewport.width;
             canvas.height = Math.max(leftEyeViewport.height, rightEyeViewport.height);
-          } else if ("getRecommendedRenderTargetSize" in vrHMD) {
-            var renderTargetSize = vrHMD.getRecommendedRenderTargetSize();
-            canvas.width = renderTargetSize.width;
-            canvas.height = renderTargetSize.height;
-          } else if("renderTargetSize" in vrHMD) {
-            // Deprecated. Do not use!
-            canvas.width = vrHMD.renderTargetSize.width;
-            canvas.height = vrHMD.renderTargetSize.height;
           } else {
-            // Hard-coded Oculus DK1 values.
+            // Hard-coded fallback, Oculus DK1 values.
             canvas.width = 2000;
             canvas.height = 1056;
           }
@@ -660,13 +657,26 @@ function main() {
             if (devices[i] instanceof HMDVRDevice) {
                 vrHMD = devices[i];
 
-                var e = vrHMD.getEyeTranslation("left");
-                vrEyeLeft = [e.x, e.y, e.z];
-                e = vrHMD.getEyeTranslation("right");
-                vrEyeRight = [e.x, e.y, e.z];
+                if ('getEyeParameters' in vrHMD) {
+                  var leftEye = vrHMD.getEyeParameters("left");
+                  var rightEye = vrHMD.getEyeParameters("right");
 
-                vrFovLeft = vrHMD.getRecommendedEyeFieldOfView("left");
-                vrFovRight = vrHMD.getRecommendedEyeFieldOfView("right");
+                  var e = leftEye.eyeTranslation;
+                  vrEyeLeft = [e.x, e.y, e.z];
+                  e = rightEye.eyeTranslation;
+                  vrEyeRight = [e.x, e.y, e.z];
+
+                  vrFovLeft = leftEye.recommendedFieldOfView;
+                  vrFovRight = rightEye.recommendedFieldOfView;
+                } else {
+                  var e = vrHMD.getEyeTranslation("left");
+                  vrEyeLeft = [e.x, e.y, e.z];
+                  e = vrHMD.getEyeTranslation("right");
+                  vrEyeRight = [e.x, e.y, e.z];
+
+                  vrFovLeft = vrHMD.getRecommendedEyeFieldOfView("left");
+                  vrFovRight = vrHMD.getRecommendedEyeFieldOfView("right");
+                }
 
                 break;
             }
