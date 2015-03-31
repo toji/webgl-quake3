@@ -48,7 +48,8 @@ var mapShaders = ['scripts/web_demo.shader'];
 
 // ===========================================
 // Everything below here is common to all maps
-var modelViewMat, projectionMat;
+var leftViewMat, rightViewMat, leftProjMat, rightProjMat;
+var leftViewport, rightViewport;
 var activeShader;
 var map, playerMover;
 var mobileSite = false;
@@ -60,6 +61,7 @@ var onResize = null;
 
 // VR Globals
 var vrEnabled = false;
+var vrForced = false;
 var vrHMD = null;
 var vrSensor = null;
 var vrTimewarp = true;
@@ -72,6 +74,8 @@ var vrIPDScale = 32.0; // There are 32 units per meter in Quake 3
 var vrFovLeft = null;
 var vrFovRight = null;
 var vrPosition = null;
+
+var vrDrawMode = 0;
 
 var SKIP_FRAMES = 0;
 var REPEAT_FRAMES = 1;
@@ -97,8 +101,13 @@ function initGL(gl, canvas) {
     gl.enable(gl.BLEND);
     gl.enable(gl.CULL_FACE);
 
-    projectionMat = mat4.create();
-    modelViewMat = mat4.create();
+    leftViewMat = mat4.create();
+    rightViewMat = mat4.create();
+    leftProjMat = mat4.create();
+    rightProjMat = mat4.create();
+
+    leftViewport = { x: 0, y: 0, width: 0, height: 0 };
+    rightViewport = { x: 0, y: 0, width: 0, height: 0 };
 
     initMap(gl);
 }
@@ -111,6 +120,12 @@ function initMap(gl) {
     var tesselation = getQueryVariable("tesselate");
     if(tesselation) {
         tesselation = parseInt(tesselation, 10);
+    }
+
+    var vrMode = getQueryVariable("vrDrawMode");
+    if (vrMode) {
+      vrForced = true;
+      vrDrawMode = parseInt(vrMode, 10);
     }
 
     map = new q3bsp(gl);
@@ -264,7 +279,7 @@ function getViewMatrix(out, translated, vrPosition, eyeOffset) {
       mat4.translate(out, [-eyeOffset[0]*vrIPDScale, -eyeOffset[1]*vrIPDScale, -eyeOffset[2]*vrIPDScale]);
     }
     mat4.multiply(out, hmdOrientationMatrix, out);
-    if (translated) {
+    if (translated && vrPosition.position) {
       mat4.translate(out, [-vrPosition.position.x*vrIPDScale, -vrPosition.position.y*vrIPDScale, -vrPosition.position.z*vrIPDScale]);
     }
   }
@@ -283,28 +298,45 @@ function drawFrame(gl) {
 
     if(!map || !playerMover) { return; }
 
-    if (!vrEnabled) {
+    if (!vrEnabled && !vrForced) {
       // Matrix setup
-      getViewMatrix(modelViewMat, true);
+      getViewMatrix(leftViewMat, true);
 
       // Here's where all the magic happens...
-      map.draw(cameraPosition, modelViewMat, projectionMat);
+      map.draw(leftViewMat, leftProjMat);
+    } else if (vrDrawMode == 1) {
+      var canvas = document.getElementById("viewport");
+      leftViewport.width = canvas.width / 2.0;
+      leftViewport.height = canvas.height;
+
+      rightViewport.x = canvas.width / 2.0; 
+      rightViewport.width = canvas.width / 2.0;
+      rightViewport.height = canvas.height;
+
+      getViewMatrix(leftViewMat, true, vrPosition, vrEyeLeft);
+      mat4PerspectiveFromVRFieldOfView(vrFovLeft, 1.0, 4096.0, leftProjMat);
+
+      getViewMatrix(rightViewMat, true, vrPosition, vrEyeRight);
+      mat4PerspectiveFromVRFieldOfView(vrFovRight, 1.0, 4096.0, rightProjMat);
+
+      map.draw(leftViewMat, leftProjMat, leftViewport,
+               rightViewMat, rightProjMat, rightViewport);
     } else {
       var canvas = document.getElementById("viewport");
 
       // Left Eye
       gl.viewport(0, 0, canvas.width / 2.0, canvas.height);
-      getViewMatrix(modelViewMat, true, vrPosition, vrEyeLeft);
-      mat4PerspectiveFromVRFieldOfView(vrFovLeft, 1.0, 4096.0, projectionMat);
+      getViewMatrix(leftViewMat, true, vrPosition, vrEyeLeft);
+      mat4PerspectiveFromVRFieldOfView(vrFovLeft, 1.0, 4096.0, leftProjMat);
 
-      map.draw(cameraPosition, modelViewMat, projectionMat);
+      map.draw(leftViewMat, leftProjMat);
 
       // Right Eye
       gl.viewport(canvas.width / 2.0, 0, canvas.width / 2.0, canvas.height);
-      getViewMatrix(modelViewMat, true, vrPosition, vrEyeRight);
-      mat4PerspectiveFromVRFieldOfView(vrFovRight, 1.0, 4096.0, projectionMat);
+      getViewMatrix(rightViewMat, true, vrPosition, vrEyeRight);
+      mat4PerspectiveFromVRFieldOfView(vrFovRight, 1.0, 4096.0, rightProjMat);
 
-      map.draw(cameraPosition, modelViewMat, projectionMat);
+      map.draw(rightViewMat, rightProjMat);
     }
 }
 
@@ -610,7 +642,7 @@ function main() {
     var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
 
     onResize = function() {
-        if (vrEnabled) {
+        if (vrEnabled && vrHMD) {
           if ("getEyeParameters" in vrHMD) {
             var leftEyeViewport = vrHMD.getEyeParameters("left").renderRect;
             var rightEyeViewport = vrHMD.getEyeParameters("right").renderRect;
@@ -637,8 +669,10 @@ function main() {
               canvas.height = canvas.clientHeight * devicePixelRatio;
           }
 
-          gl.viewport(0, 0, canvas.width, canvas.height);
-          mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, projectionMat);
+          if (!vrEnabled) {
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, leftProjMat);
+          }
         }
     }
 
