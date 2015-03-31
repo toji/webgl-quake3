@@ -1,7 +1,7 @@
 /**
  * @fileoverview game-shim - Shims to normalize gaming-related APIs to their respective specs
  * @author Brandon Jones
- * @version 0.5
+ * @version 0.6
  */
 
 /*
@@ -36,94 +36,15 @@
     var GameShim = global.GameShim = {
         supports: {
             fullscreen: true,
-            pointerLock: true,
-            gamepad: true
+            pointerLock: true
         }
     };
-
-    //=====================
-    // Animation
-    //=====================
-
-    // window.requestAnimaionFrame, credit: Erik Moller
-    // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
-    (function() {
-        var lastTime = 0;
-        var vendors = ["webkit", "moz", "ms", "o"];
-        var x;
-
-        for(x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
-            window.requestAnimationFrame = window[vendors[x]+"RequestAnimationFrame"];
-        }
-
-        window.cancelAnimationFrame = window.cancelAnimationFrame || window.cancelRequestAnimationFrame; // Check for older syntax
-        for(x = 0; x < vendors.length && !window.cancelAnimationFrame; ++x) {
-            window.cancelAnimationFrame = window[vendors[x]+"CancelAnimationFrame"] || window[vendors[x]+"CancelRequestAnimationFrame"];
-        }
-
-        // Manual fallbacks
-        if (!window.requestAnimationFrame) {
-            window.requestAnimationFrame = function(callback, element) {
-                var currTime = Date.now();
-                var timeToCall = Math.max(0, 16 - (currTime - lastTime));
-                var id = window.setTimeout(function() { callback(currTime + timeToCall); },
-                  timeToCall);
-                lastTime = currTime + timeToCall;
-                return id;
-            };
-        }
-
-        if (!window.cancelAnimationFrame) {
-            window.cancelAnimationFrame = function(id) {
-                clearTimeout(id);
-            };
-        }
-
-        // window.animationStartTime
-        if(!window.animationStartTime) {
-            getter = (function() {
-                for(x = 0; x < vendors.length; ++x) {
-                    if(window[vendors[x] + "AnimationStartTime"]) {
-                        return function() { return window[vendors[x] + "AnimationStartTime"]; };
-                    }
-                }
-
-                return function() { return Date.now(); };
-            })();
-
-            Object.defineProperty(window, "animationStartTime", {
-                enumerable: true, configurable: false, writeable: false,
-                get: getter
-            });
-        }
-    }());
 
     //=====================
     // Fullscreen
     //=====================
 
-    // document.isFullScreen
-    if(!document.hasOwnProperty("fullscreenEnabled")) {
-        getter = (function() {
-            // These are the functions that match the spec, and should be preferred
-            if("webkitIsFullScreen" in document) {
-                return function() { return document.webkitIsFullScreen; };
-            }
-            if("mozFullScreen" in document) {
-                return function() { return document.mozFullScreen; };
-            }
-
-            GameShim.supports.fullscreen = false;
-            return function() { return false; }; // not supported, never fullscreen
-        })();
-
-        Object.defineProperty(document, "fullscreenEnabled", {
-            enumerable: true, configurable: false, writeable: false,
-            get: getter
-        });
-    }
-
-    if(!document.hasOwnProperty("fullscreenElement")) {
+    if(!("fullscreenElement" in document)) {
         getter = (function() {
             // These are the functions that match the spec, and should be preferred
             if("webkitFullscreenElement" in document) {
@@ -162,36 +83,32 @@
     document.addEventListener("mozfullscreenerror", fullscreenerror, false);
 
     // element.requestFullScreen
-    if(!elementPrototype.requestFullScreen) {
+    if(!("requestFullScreen" in elementPrototype)) {
         elementPrototype.requestFullScreen = (function() {
-            if(elementPrototype.webkitRequestFullscreen) {
-                return function(options) {
-                    this.webkitRequestFullscreen(options);
-                };
+            if("webkitRequestFullScreen" in elementPrototype) {
+                return elementPrototype.webkitRequestFullScreen;
             }
 
-            if(elementPrototype.webkitRequestFullScreen) {
-                return function(options) {
-                    this.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT, options);
-                };
-            }
-
-            if(elementPrototype.mozRequestFullScreen) {
-                return function(options) {
-                    this.mozRequestFullScreen(options);
-                };
+            if("mozRequestFullScreen" in elementPrototype) {
+                return elementPrototype.mozRequestFullScreen;
             }
 
             return function(){ /* unsupported, fail silently */ };
         })();
     }
 
-    // document.exitFullscreen
-    if(!document.exitFullscreen) {
-        document.exitFullscreen = (function() {
-            return  document.webkitExitFullscreen ||
-                    document.mozExitFullscreen ||
-                    function(){ /* unsupported, fail silently */ };
+    // document.exitFullScreen
+    if(!("exitFullScreen" in document)) {
+        document.exitFullScreen = (function() {
+            if("webkitExitFullScreen" in document) {
+                return document.webkitExitFullScreen;
+            }
+
+            if("mozExitFullScreen" in document) {
+                return document.mozExitFullScreen;
+            }
+
+            return function(){ /* unsupported, fail silently */ };
         })();
     }
 
@@ -242,7 +159,7 @@
     document.addEventListener("mozpointerlockerror", pointerlockerror, false);
 
     // document.pointerLockEnabled
-    if(!document.hasOwnProperty("pointerLockEnabled")) {
+    if(!("pointerLockEnabled" in document)) {
         getter = (function() {
             // These are the functions that match the spec, and should be preferred
             if("webkitPointerLockEnabled" in document) {
@@ -250,20 +167,6 @@
             }
             if("mozPointerLockEnabled" in document) {
                 return function() { return document.mozPointerLockEnabled; };
-            }
-
-            // Early versions of the spec managed mouselock through the pointer object
-            if(navigator.pointer) {
-                if(typeof(navigator.pointer.isLocked) === "boolean") {
-                    // Chrome initially launched with this interface
-                    return function() { return navigator.pointer.isLocked; };
-                } else if(typeof(navigator.pointer.isLocked) === "function") {
-                    // Some older builds might provide isLocked as a function
-                    return function() { return navigator.pointer.isLocked(); };
-                } else if(typeof(navigator.pointer.islocked) === "function") {
-                    // For compatibility with early Firefox build
-                    return function() { return navigator.pointer.islocked(); };
-                }
             }
 
             GameShim.supports.pointerLock = false;
@@ -276,7 +179,7 @@
         });
     }
 
-    if(!document.hasOwnProperty("pointerLockElement")) {
+    if(!("pointerLockElement" in document)) {
         getter = (function() {
             // These are the functions that match the spec, and should be preferred
             if("webkitPointerLockElement" in document) {
@@ -296,56 +199,33 @@
     }
 
     // element.requestPointerLock
-    if(!elementPrototype.requestPointerLock) {
+    if(!("requestPointerLock" in elementPrototype)) {
         elementPrototype.requestPointerLock = (function() {
-            return  elementPrototype.webkitRequestPointerLock ||
-                    elementPrototype.mozRequestPointerLock    ||
-                    function(){
-                        if(navigator.pointer) {
-                            var elem = this;
-                            navigator.pointer.lock(elem, pointerlockchange, pointerlockerror);
-                        }
-                    };
+            if("webkitRequestPointerLock" in elementPrototype) {
+                return elementPrototype.webkitRequestPointerLock;
+            }
+
+            if("mozRequestPointerLock" in elementPrototype) {
+                return elementPrototype.mozRequestPointerLock;
+            }
+
+            return function() { /* unsupported, fail silently */ };
         })();
     }
 
     // document.exitPointerLock
-    if(!document.exitPointerLock) {
+    if(!("exitPointerLock" in document)) {
         document.exitPointerLock = (function() {
-            return  document.webkitExitPointerLock ||
-                    document.mozExitPointerLock ||
-                    function(){
-                        if(navigator.pointer) {
-                            var elem = this;
-                            navigator.pointer.unlock();
-                        }
-                    };
-        })();
-    }
-
-    //=====================
-    // Gamepad
-    //=====================
-
-    if(!navigator.gamepads) {
-        getter = (function() {
-            // These are the functions that match the spec, and should be preferred
-            if("webkitGamepads" in navigator) {
-                return function() { return navigator.webkitGamepads; };
-            }
-            if("mozGamepads" in navigator) {
-                return function() { return navigator.mozGamepads; };
+            if("webkitExitPointerLock" in elementPrototype) {
+                return document.webkitExitPointerLock;
             }
 
-            GameShim.supports.gamepad = false;
-            var gamepads = [];
-            return function() { return gamepads; }; // not supported, return empty array
-        })();
+            if("mozExitPointerLock" in elementPrototype) {
+                return document.mozExitPointerLock;
+            }
 
-        Object.defineProperty(navigator, "gamepads", {
-            enumerable: true, configurable: false, writeable: false,
-            get: getter
-        });
+            return function() { /* unsupported, fail silently */ };
+        })();
     }
 
 })((typeof(exports) != 'undefined') ? global : window); // Account for CommonJS environments
