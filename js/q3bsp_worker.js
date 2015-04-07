@@ -83,7 +83,15 @@ q3bsp.parse = function(src, tesselationLevel) {
     
     var header = q3bsp.readHeader(src);
     
-    if(header.tag != 'IBSP' && header.version != 46) { return; } // Check for appropriate format
+    // Check for appropriate format
+    if(header.tag != 'IBSP' || header.version != 46) {
+        postMessage({
+            type: 'status',
+            message: 'Incompatible BSP version.'
+        });
+
+        return;
+    }
     
     // Read map entities
     q3bsp.readEntities(header.lumps[0], src);
