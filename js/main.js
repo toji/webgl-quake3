@@ -760,7 +760,7 @@ function main() {
     var viewportFrame = document.getElementById("viewport-frame");
     var viewport = document.getElementById("viewport");
     document.addEventListener("fullscreenchange", function() {
-        if(document.fullscreenEnabled) {
+        if(document.fullscreenElement) {
             viewport.requestPointerLock(); // Attempt to lock the mouse automatically on fullscreen
         } else {
           vrEnabled = false;
