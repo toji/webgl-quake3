@@ -166,7 +166,7 @@ function respawnPlayer(index) {
 
         playerMover.velocity = [0,0,0];
 
-        zAngle = -spawnPoint.angle * (3.1415/180) + (3.1415*0.5); // Negative angle in radians + 90 degrees
+        zAngle = -(spawnPoint.angle || 0) * (3.1415/180) + (3.1415*0.5); // Negative angle in radians + 90 degrees
         xAngle = 0;
     }
 }

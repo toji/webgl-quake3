@@ -598,7 +598,7 @@ q3bsp.compileMap = function(verts, faces, meshVerts, lightmaps, shaders, tessela
     }
     
     // Compile vert list
-    var vertices = new Array(verts.length*10);
+    var vertices = new Array(verts.length*14);
     var offset = 0;
     for(var i = 0; i < verts.length; ++i) {
         var vert = verts[i];
