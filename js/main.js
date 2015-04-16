@@ -769,10 +769,13 @@ function main() {
     }, false);
 
     // Fullscreen
-    var button = document.getElementById('fullscreenBtn');
-    button.addEventListener('click', function() {
+    function goFullscreen() {
         viewportFrame.requestFullScreen();
-    }, false);
+    }
+    var fullscreenButton = document.getElementById('fullscreenBtn');
+    var mobileFullscreenBtn = document.getElementById("mobileFullscreenBtn");
+    fullscreenButton.addEventListener('click', goFullscreen, false);
+    mobileFullscreenBtn.addEventListener('click', goFullscreen, false);
 
     // VR
     function goVrFullscreen() {
@@ -782,8 +785,8 @@ function main() {
     }
     var vrBtn = document.getElementById("vrBtn");
     var mobileVrBtn = document.getElementById("mobileVrBtn");
-    vrBtn.addEventListener("click", goVrFullscreen);
-    mobileVrBtn.addEventListener("click", goVrFullscreen);
+    vrBtn.addEventListener("click", goVrFullscreen, false);
+    mobileVrBtn.addEventListener("click", goVrFullscreen, false);
 
 }
 window.addEventListener("load", main); // Fire this once the page is loaded up
