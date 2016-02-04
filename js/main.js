@@ -274,19 +274,19 @@ function getViewMatrix(out, translated, vrPosition, eyeOffset) {
   mat4.identity(out);
 
   if (vrPosition) {
-    quat4.toMat4([-vrPosition.orientation.x, -vrPosition.orientation.y, -vrPosition.orientation.z, vrPosition.orientation.w], hmdOrientationMatrix);
+    mat4.fromQuat(hmdOrientationMatrix, [-vrPosition.orientation.x, -vrPosition.orientation.y, -vrPosition.orientation.z, vrPosition.orientation.w]);
     if (eyeOffset) {
-      mat4.translate(out, [-eyeOffset[0]*vrIPDScale, -eyeOffset[1]*vrIPDScale, -eyeOffset[2]*vrIPDScale]);
+      mat4.translate(out, out, [-eyeOffset[0]*vrIPDScale, -eyeOffset[1]*vrIPDScale, -eyeOffset[2]*vrIPDScale]);
     }
-    mat4.multiply(out, hmdOrientationMatrix, out);
+    mat4.multiply(out, out, hmdOrientationMatrix);
     if (translated && vrPosition.position) {
-      mat4.translate(out, [-vrPosition.position.x*vrIPDScale, -vrPosition.position.y*vrIPDScale, -vrPosition.position.z*vrIPDScale]);
+      mat4.translate(out, out, [-vrPosition.position.x*vrIPDScale, -vrPosition.position.y*vrIPDScale, -vrPosition.position.z*vrIPDScale]);
     }
   }
-  mat4.rotateX(out, xAngle-Math.PI/2);
-  mat4.rotateZ(out, zAngle);
+  mat4.rotateX(out, out, xAngle-Math.PI/2);
+  mat4.rotateZ(out, out, zAngle);
   if (translated) {
-    mat4.translate(out, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-playerHeight]);
+    mat4.translate(out, out, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-playerHeight]);
   }
 }
 
@@ -369,13 +369,13 @@ function moveViewOriented(dir, frameTime) {
       mat4.identity(cameraMat);
       if (vrEnabled) {
         eulerFromQuaternion(vrEuler, vrPosition.orientation, 'YXZ');
-        mat4.rotateZ(cameraMat, zAngle - vrEuler[1]);
+        mat4.rotateZ(cameraMat, cameraMat, zAngle - vrEuler[1]);
       } else {
-        mat4.rotateZ(cameraMat, zAngle);
+        mat4.rotateZ(cameraMat, cameraMat, zAngle);
       }
-      mat4.inverse(cameraMat);
+       mat4.invert(cameraMat, cameraMat);
 
-      mat4.multiplyVec3(cameraMat, dir);
+      vec3.transformMat4(dir, dir, cameraMat);
   }
 
   // Send desired movement direction to the player mover for collision detection against the map
@@ -671,7 +671,7 @@ function main() {
 
           if (!vrEnabled) {
             gl.viewport(0, 0, canvas.width, canvas.height);
-            mat4.perspective(45.0, canvas.width/canvas.height, 1.0, 4096.0, leftProjMat);
+            mat4.perspective(leftProjMat, 45.0, canvas.width/canvas.height, 1.0, 4096.0);
           }
         }
     }
