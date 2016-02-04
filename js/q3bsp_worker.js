@@ -27,7 +27,7 @@
  */
 
 importScripts('./util/binary-file.js');
-importScripts('./util/gl-matrix-min.js');
+importScripts('./util/gl-matrix-min.2.3.2.js');
 
 onmessage = function(msg) {
     switch(msg.data.type) {
@@ -656,31 +656,35 @@ q3bsp.compileMap = function(verts, faces, meshVerts, lightmaps, shaders, tessela
 //
 
 q3bsp.getCurvePoint3 = function(c0, c1, c2, dist) {
-    var b = 1.0 - dist;
+    var a, b = 1.0 - dist;
     
-    return vec3.add(
-        vec3.add(
-            vec3.scale(c0, (b*b), [0, 0, 0]),
-            vec3.scale(c1, (2*b*dist), [0, 0, 0])
+	return vec3.add(
+        a = vec3.add(
+            a = vec3.scale([0, 0, 0], c0, (b*b)),
+			a,
+            vec3.scale([0, 0, 0], c1, (2*b*dist))
         ),
-        vec3.scale(c2, (dist*dist), [0, 0, 0])
+		a,
+        vec3.scale([0, 0, 0], c2, (dist*dist))
     );
 };
 
 // This is kinda ugly. Clean it up at some point?
 q3bsp.getCurvePoint2 = function(c0, c1, c2, dist) {
-    var b = 1.0 - dist;
+    var a, b = 1.0 - dist;
     
     c30 = [c0[0], c0[1], 0];
     c31 = [c1[0], c1[1], 0];
     c32 = [c2[0], c2[1], 0];
     
-    var res = vec3.add(
-        vec3.add(
-            vec3.scale(c30, (b*b), [0, 0, 0]),
-            vec3.scale(c31, (2*b*dist), [0, 0, 0])
+	var res = vec3.add(
+        a = vec3.add(
+            a = vec3.scale([0, 0, 0], c30, (b*b)),
+			a,
+            vec3.scale([0, 0, 0], c31, (2*b*dist))
         ),
-        vec3.scale(c32, (dist*dist), [0, 0, 0])
+		a,
+        vec3.scale([0, 0, 0], c32, (dist*dist))
     );
     
     return [res[0], res[1]];

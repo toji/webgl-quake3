@@ -417,7 +417,7 @@ q3bsp.prototype.bindShaderAttribs = function(shader) {
 q3bsp.prototype.bindSkyMatrix = function(shader, modelViewMat, projectionMat) {
     var gl = this.gl;
     
-    mat4.set(modelViewMat, this.skyboxMat);
+    mat4.copy(this.skyboxMat, modelViewMat);
     // Clear out the translation components
     this.skyboxMat[12] = 0;
     this.skyboxMat[13] = 0;
