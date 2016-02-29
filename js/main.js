@@ -60,7 +60,6 @@ var cameraPosition = [0, 0, 0];
 var onResize = null;
 
 // VR Globals
-var vrForced = false;
 var vrDisplay = null;
 
 // These values are in meters
@@ -74,7 +73,7 @@ var SKIP_FRAMES = 0;
 var REPEAT_FRAMES = 1;
 
 function isVRPresenting() {
-  return (vrDisplay && vrDisplay.isPresenting) || vrForced;
+  return (vrDisplay && vrDisplay.isPresenting);
 }
 
 function getQueryVariable(variable) {
@@ -121,7 +120,6 @@ function initMap(gl) {
 
     var vrMode = getQueryVariable("vrDrawMode");
     if (vrMode) {
-      vrForced = true;
       vrDrawMode = parseInt(vrMode, 10);
     }
 
@@ -227,25 +225,35 @@ function onFrame(gl, event) {
       drawFrame(gl);
 }
 
-var hmdOrientationMatrix = mat4.create();
-function getViewMatrix(out, translated, pose, eye) {
+var poseMatrix = mat4.create();
+function getViewMatrix(out, pose, eye) {
   mat4.identity(out);
 
+  mat4.translate(out, out, playerMover.position);
+  if (!vrDisplay || !vrDisplay.stageParameters)
+    mat4.translate(out, out, [0, 0, playerHeight]);
+  mat4.rotateZ(out, out, -zAngle);
+  mat4.rotateX(out, out, -xAngle+Math.PI/2);
+
   if (pose) {
-    mat4.fromQuat(hmdOrientationMatrix, [-pose.orientation[0], -pose.orientation[1], -pose.orientation[2], pose.orientation[3]]);
+    var orientation = pose.orientation;
+    var position = pose.position;
+    if (!orientation) { orientation = [0, 0, 0, 1]; }
+    if (!position) { position = [0, 0, 0]; }
+
+    mat4.fromRotationTranslation(poseMatrix, orientation, position);
+    if (vrDisplay.stageParameters) {
+      mat4.multiply(poseMatrix, vrDisplay.stageParameters.sittingToStandingTransform, out);
+    }
+
     if (eye) {
-      mat4.translate(out, out, [-eye.offset[0]*vrIPDScale, -eye.offset[1]*vrIPDScale, -eye.offset[2]*vrIPDScale]);
+      mat4.translate(poseMatrix, poseMatrix, [eye.offset[0] * vrIPDScale, eye.offset[1] * vrIPDScale, eye.offset[2] * vrIPDScale]);
     }
-    mat4.multiply(out, out, hmdOrientationMatrix);
-    if (translated && pose.position) {
-      mat4.translate(out, out, [-pose.position[0]*vrIPDScale, -pose.position[1]*vrIPDScale, -pose.position[2]*vrIPDScale]);
-    }
+
+    mat4.multiply(out, out, poseMatrix);
   }
-  mat4.rotateX(out, out, xAngle-Math.PI/2);
-  mat4.rotateZ(out, out, zAngle);
-  if (translated) {
-    mat4.translate(out, out, [-playerMover.position[0], -playerMover.position[1], -playerMover.position[2]-playerHeight]);
-  }
+
+  mat4.invert(out, out);
 }
 
 // Draw a single frame
@@ -258,7 +266,7 @@ function drawFrame(gl) {
 
     if (!isVRPresenting()) {
       // Matrix setup
-      getViewMatrix(leftViewMat, true);
+      getViewMatrix(leftViewMat);
 
       // Here's where all the magic happens...
       map.draw(leftViewMat, leftProjMat);
@@ -274,10 +282,10 @@ function drawFrame(gl) {
       var leftEye = vrDisplay.getEyeParameters("left");
       var rightEye = vrDisplay.getEyeParameters("right");
 
-      getViewMatrix(leftViewMat, true, vrPose, leftEye);
+      getViewMatrix(leftViewMat, vrPose, leftEye);
       mat4.perspectiveFromFieldOfView(projectionMat, leftEye.fieldOfView, 1.0, 4096.0);
 
-      getViewMatrix(rightViewMat, true, vrPose, rightEye);
+      getViewMatrix(rightViewMat, vrPose, rightEye);
       mat4.perspectiveFromFieldOfView(projectionMat, rightEye.fieldOfView, 1.0, 4096.0);
 
       map.draw(leftViewMat, leftProjMat, leftViewport,
@@ -290,14 +298,14 @@ function drawFrame(gl) {
 
       // Left Eye
       gl.viewport(0, 0, canvas.width / 2.0, canvas.height);
-      getViewMatrix(leftViewMat, true, vrPose, leftEye);
+      getViewMatrix(leftViewMat, vrPose, leftEye);
       mat4.perspectiveFromFieldOfView(leftProjMat, leftEye.fieldOfView, 1.0, 4096.0);
 
       map.draw(leftViewMat, leftProjMat);
 
       // Right Eye
       gl.viewport(canvas.width / 2.0, 0, canvas.width / 2.0, canvas.height);
-      getViewMatrix(rightViewMat, true, vrPose, rightEye);
+      getViewMatrix(rightViewMat, vrPose, rightEye);
       mat4.perspectiveFromFieldOfView(rightProjMat, rightEye.fieldOfView, 1.0, 4096.0);
 
       map.draw(rightViewMat, rightProjMat);
