@@ -230,7 +230,7 @@ function getViewMatrix(out, pose, eye) {
   mat4.identity(out);
 
   mat4.translate(out, out, playerMover.position);
-  if (!vrDisplay || !vrDisplay.stageParameters)
+  //if (!vrDisplay || !vrDisplay.stageParameters)
     mat4.translate(out, out, [0, 0, playerHeight]);
   mat4.rotateZ(out, out, -zAngle);
   mat4.rotateX(out, out, -xAngle+Math.PI/2);
@@ -241,10 +241,14 @@ function getViewMatrix(out, pose, eye) {
     if (!orientation) { orientation = [0, 0, 0, 1]; }
     if (!position) { position = [0, 0, 0]; }
 
-    mat4.fromRotationTranslation(poseMatrix, orientation, position);
-    if (vrDisplay.stageParameters) {
+    mat4.fromRotationTranslation(poseMatrix, orientation, [
+      position[0] * vrIPDScale,
+      position[1] * vrIPDScale,
+      position[2] * vrIPDScale
+    ]);
+    /*if (vrDisplay.stageParameters) {
       mat4.multiply(poseMatrix, vrDisplay.stageParameters.sittingToStandingTransform, out);
-    }
+    }*/
 
     if (eye) {
       mat4.translate(poseMatrix, poseMatrix, [eye.offset[0] * vrIPDScale, eye.offset[1] * vrIPDScale, eye.offset[2] * vrIPDScale]);
@@ -266,7 +270,7 @@ function drawFrame(gl) {
 
     if (!isVRPresenting()) {
       // Matrix setup
-      getViewMatrix(leftViewMat);
+      getViewMatrix(leftViewMat, vrPose);
 
       // Here's where all the magic happens...
       map.draw(leftViewMat, leftProjMat);
@@ -648,14 +652,19 @@ function main() {
     });
 
     function EnumerateVRDisplays(displays) {
-        if (displays.length > 0) {
-            vrDisplay = displays[0];
+      if (displays.length > 0) {
+        vrDisplay = displays[0];
 
-            var vrToggle = document.getElementById("vrToggle");
-            vrToggle.style.display = "block";
-            var mobileVrBtn = document.getElementById("mobileVrBtn");
-            mobileVrBtn.style.display = "block";
-        }
+        var vrToggle = document.getElementById("vrToggle");
+        vrToggle.style.display = "block";
+        var mobileVrBtn = document.getElementById("mobileVrBtn");
+        mobileVrBtn.style.display = "block";
+
+        // Handle VR presentation change
+        window.addEventListener("vrdisplaypresentchange", function() {
+          onResize();
+        }, false);
+      }
     }
 
     if (navigator.getVRDisplays) {
@@ -690,8 +699,12 @@ function main() {
 
     // VR
     function presentVR() {
+      if (vrDisplay.isPresenting) {
+        vrDisplay.exitPresent();
+      } else {
         xAngle = 0.0;
         vrDisplay.requestPresent({ source: viewport });
+      }
     }
     var vrBtn = document.getElementById("vrBtn");
     var mobileVrBtn = document.getElementById("mobileVrBtn");
