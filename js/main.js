@@ -60,25 +60,22 @@ var cameraPosition = [0, 0, 0];
 var onResize = null;
 
 // VR Globals
-var vrEnabled = false;
 var vrForced = false;
-var vrHMD = null;
-var vrSensor = null;
-var vrTimewarp = true;
+var vrDisplay = null;
 
 // These values are in meters
-var vrEyeLeft = [-0.03, 0.0, 0.0];
-var vrEyeRight = [0.03, 0.0, 0.0];
 var playerHeight = 57; // Roughly where my eyes sit (1.78 meters off the ground)
 var vrIPDScale = 32.0; // There are 32 units per meter in Quake 3
-var vrFovLeft = null;
-var vrFovRight = null;
-var vrPosition = null;
+var vrPose = null;
 
 var vrDrawMode = 0;
 
 var SKIP_FRAMES = 0;
 var REPEAT_FRAMES = 1;
+
+function isVRPresenting() {
+  return (vrDisplay && vrDisplay.isPresenting) || vrForced;
+}
 
 function getQueryVariable(variable) {
     var query = window.location.search.substring(1);
@@ -178,78 +175,39 @@ function eulerFromQuaternion(out, q, order) {
   // Borrowed from Three.JS :)
   // q is assumed to be normalized
   // http://www.mathworks.com/matlabcentral/fileexchange/20696-function-to-convert-between-dcm-euler-angles-quaternions-and-euler-vectors/content/SpinCalc.m
-  var sqx = q.x * q.x;
-  var sqy = q.y * q.y;
-  var sqz = q.z * q.z;
-  var sqw = q.w * q.w;
+  var sqx = q[0] * q[0];
+  var sqy = q[1] * q[1];
+  var sqz = q[2] * q[2];
+  var sqw = q[3] * q[3];
 
   if ( order === 'XYZ' ) {
-    out[0] = Math.atan2( 2 * ( q.x * q.w - q.y * q.z ), ( sqw - sqx - sqy + sqz ) );
-    out[1] = Math.asin(  clamp( 2 * ( q.x * q.z + q.y * q.w ), -1, 1 ) );
-    out[2] = Math.atan2( 2 * ( q.z * q.w - q.x * q.y ), ( sqw + sqx - sqy - sqz ) );
+    out[0] = Math.atan2( 2 * ( q[0] * q[3] - q[1] * q[2] ), ( sqw - sqx - sqy + sqz ) );
+    out[1] = Math.asin(  clamp( 2 * ( q[0] * q[2] + q[1] * q[3] ), -1, 1 ) );
+    out[2] = Math.atan2( 2 * ( q[2] * q[3] - q[0] * q[1] ), ( sqw + sqx - sqy - sqz ) );
   } else if ( order ===  'YXZ' ) {
-    out[0] = Math.asin(  clamp( 2 * ( q.x * q.w - q.y * q.z ), -1, 1 ) );
-    out[1] = Math.atan2( 2 * ( q.x * q.z + q.y * q.w ), ( sqw - sqx - sqy + sqz ) );
-    out[2] = Math.atan2( 2 * ( q.x * q.y + q.z * q.w ), ( sqw - sqx + sqy - sqz ) );
+    out[0] = Math.asin(  clamp( 2 * ( q[0] * q[3] - q[1] * q[2] ), -1, 1 ) );
+    out[1] = Math.atan2( 2 * ( q[0] * q[2] + q[1] * q[3] ), ( sqw - sqx - sqy + sqz ) );
+    out[2] = Math.atan2( 2 * ( q[0] * q[1] + q[2] * q[3] ), ( sqw - sqx + sqy - sqz ) );
   } else if ( order === 'ZXY' ) {
-    out[0] = Math.asin(  clamp( 2 * ( q.x * q.w + q.y * q.z ), -1, 1 ) );
-    out[1] = Math.atan2( 2 * ( q.y * q.w - q.z * q.x ), ( sqw - sqx - sqy + sqz ) );
-    out[2] = Math.atan2( 2 * ( q.z * q.w - q.x * q.y ), ( sqw - sqx + sqy - sqz ) );
+    out[0] = Math.asin(  clamp( 2 * ( q[0] * q[3] + q[1] * q[2] ), -1, 1 ) );
+    out[1] = Math.atan2( 2 * ( q[1] * q[3] - q[2] * q[0] ), ( sqw - sqx - sqy + sqz ) );
+    out[2] = Math.atan2( 2 * ( q[2] * q[3] - q[0] * q[1] ), ( sqw - sqx + sqy - sqz ) );
   } else if ( order === 'ZYX' ) {
-    out[0] = Math.atan2( 2 * ( q.x * q.w + q.z * q.y ), ( sqw - sqx - sqy + sqz ) );
-    out[1] = Math.asin(  clamp( 2 * ( q.y * q.w - q.x * q.z ), -1, 1 ) );
-    out[2] = Math.atan2( 2 * ( q.x * q.y + q.z * q.w ), ( sqw + sqx - sqy - sqz ) );
+    out[0] = Math.atan2( 2 * ( q[0] * q[3] + q[2] * q[1] ), ( sqw - sqx - sqy + sqz ) );
+    out[1] = Math.asin(  clamp( 2 * ( q[1] * q[3] - q[0] * q[2] ), -1, 1 ) );
+    out[2] = Math.atan2( 2 * ( q[0] * q[1] + q[2] * q[3] ), ( sqw + sqx - sqy - sqz ) );
   } else if ( order === 'YZX' ) {
-    out[0] = Math.atan2( 2 * ( q.x * q.w - q.z * q.y ), ( sqw - sqx + sqy - sqz ) );
-    out[1] = Math.atan2( 2 * ( q.y * q.w - q.x * q.z ), ( sqw + sqx - sqy - sqz ) );
-    out[2] = Math.asin(  clamp( 2 * ( q.x * q.y + q.z * q.w ), -1, 1 ) );
+    out[0] = Math.atan2( 2 * ( q[0] * q[3] - q[2] * q[1] ), ( sqw - sqx + sqy - sqz ) );
+    out[1] = Math.atan2( 2 * ( q[1] * q[3] - q[0] * q[2] ), ( sqw + sqx - sqy - sqz ) );
+    out[2] = Math.asin(  clamp( 2 * ( q[0] * q[1] + q[2] * q[3] ), -1, 1 ) );
   } else if ( order === 'XZY' ) {
-    out[0] = Math.atan2( 2 * ( q.x * q.w + q.y * q.z ), ( sqw - sqx + sqy - sqz ) );
-    out[1] = Math.atan2( 2 * ( q.x * q.z + q.y * q.w ), ( sqw + sqx - sqy - sqz ) );
-    out[2] = Math.asin(  clamp( 2 * ( q.z * q.w - q.x * q.y ), -1, 1 ) );
+    out[0] = Math.atan2( 2 * ( q[0] * q[3] + q[1] * q[2] ), ( sqw - sqx + sqy - sqz ) );
+    out[1] = Math.atan2( 2 * ( q[0] * q[2] + q[1] * q[3] ), ( sqw + sqx - sqy - sqz ) );
+    out[2] = Math.asin(  clamp( 2 * ( q[2] * q[3] - q[0] * q[1] ), -1, 1 ) );
   } else {
     console.log('No order given for quaternion to euler conversion.');
     return;
   }
-}
-
-function mat4PerspectiveFromVRFieldOfView(fov, zNear, zFar, out) {
-  var upTan, downTan, leftTan, rightTan;
-  if (fov == null) {
-    // If no FOV is given plug in some dummy values
-    upTan = Math.tan(50 * Math.PI/180.0);
-    downTan = Math.tan(50 * Math.PI/180.0);
-    leftTan = Math.tan(45 * Math.PI/180.0);
-    rightTan = Math.tan(45 * Math.PI/180.0);
-  } else {
-    upTan = Math.tan(fov.upDegrees * Math.PI/180.0);
-    downTan = Math.tan(fov.downDegrees * Math.PI/180.0);
-    leftTan = Math.tan(fov.leftDegrees * Math.PI/180.0);
-    rightTan = Math.tan(fov.rightDegrees * Math.PI/180.0);
-  }
-
-  var xScale = 2.0 / (leftTan + rightTan);
-  var yScale = 2.0 / (upTan + downTan);
-
-  out[0] = xScale;
-  out[4] = 0.0;
-  out[8] = -((leftTan - rightTan) * xScale * 0.5);
-  out[12] = 0.0;
-
-  out[1] = 0.0;
-  out[5] = yScale;
-  out[9] = ((upTan - downTan) * yScale * 0.5);
-  out[13] = 0.0;
-
-  out[2] = 0.0;
-  out[6] = 0.0;
-  out[10] = zFar / (zNear - zFar);
-  out[14] = (zFar * zNear) / (zNear - zFar);
-
-  out[3] = 0.0;
-  out[7] = 0.0;
-  out[11] = -1.0;
-  out[15] = 0.0;
 }
 
 var lastMove = 0;
@@ -270,17 +228,17 @@ function onFrame(gl, event) {
 }
 
 var hmdOrientationMatrix = mat4.create();
-function getViewMatrix(out, translated, vrPosition, eyeOffset) {
+function getViewMatrix(out, translated, pose, eye) {
   mat4.identity(out);
 
-  if (vrPosition) {
-    mat4.fromQuat(hmdOrientationMatrix, [-vrPosition.orientation.x, -vrPosition.orientation.y, -vrPosition.orientation.z, vrPosition.orientation.w]);
-    if (eyeOffset) {
-      mat4.translate(out, out, [-eyeOffset[0]*vrIPDScale, -eyeOffset[1]*vrIPDScale, -eyeOffset[2]*vrIPDScale]);
+  if (pose) {
+    mat4.fromQuat(hmdOrientationMatrix, [-pose.orientation[0], -pose.orientation[1], -pose.orientation[2], pose.orientation[3]]);
+    if (eye) {
+      mat4.translate(out, out, [-eye.offset[0]*vrIPDScale, -eye.offset[1]*vrIPDScale, -eye.offset[2]*vrIPDScale]);
     }
     mat4.multiply(out, out, hmdOrientationMatrix);
-    if (translated && vrPosition.position) {
-      mat4.translate(out, out, [-vrPosition.position.x*vrIPDScale, -vrPosition.position.y*vrIPDScale, -vrPosition.position.z*vrIPDScale]);
+    if (translated && pose.position) {
+      mat4.translate(out, out, [-pose.position[0]*vrIPDScale, -pose.position[1]*vrIPDScale, -pose.position[2]*vrIPDScale]);
     }
   }
   mat4.rotateX(out, out, xAngle-Math.PI/2);
@@ -298,7 +256,7 @@ function drawFrame(gl) {
 
     if(!map || !playerMover) { return; }
 
-    if (!vrEnabled && !vrForced) {
+    if (!isVRPresenting()) {
       // Matrix setup
       getViewMatrix(leftViewMat, true);
 
@@ -309,35 +267,44 @@ function drawFrame(gl) {
       leftViewport.width = canvas.width / 2.0;
       leftViewport.height = canvas.height;
 
-      rightViewport.x = canvas.width / 2.0; 
+      rightViewport.x = canvas.width / 2.0;
       rightViewport.width = canvas.width / 2.0;
       rightViewport.height = canvas.height;
 
-      getViewMatrix(leftViewMat, true, vrPosition, vrEyeLeft);
-      mat4PerspectiveFromVRFieldOfView(vrFovLeft, 1.0, 4096.0, leftProjMat);
+      var leftEye = vrDisplay.getEyeParameters("left");
+      var rightEye = vrDisplay.getEyeParameters("right");
 
-      getViewMatrix(rightViewMat, true, vrPosition, vrEyeRight);
-      mat4PerspectiveFromVRFieldOfView(vrFovRight, 1.0, 4096.0, rightProjMat);
+      getViewMatrix(leftViewMat, true, vrPose, leftEye);
+      mat4.perspectiveFromFieldOfView(projectionMat, leftEye.fieldOfView, 1.0, 4096.0);
+
+      getViewMatrix(rightViewMat, true, vrPose, rightEye);
+      mat4.perspectiveFromFieldOfView(projectionMat, rightEye.fieldOfView, 1.0, 4096.0);
 
       map.draw(leftViewMat, leftProjMat, leftViewport,
                rightViewMat, rightProjMat, rightViewport);
     } else {
       var canvas = document.getElementById("viewport");
 
+      var leftEye = vrDisplay.getEyeParameters("left");
+      var rightEye = vrDisplay.getEyeParameters("right");
+
       // Left Eye
       gl.viewport(0, 0, canvas.width / 2.0, canvas.height);
-      getViewMatrix(leftViewMat, true, vrPosition, vrEyeLeft);
-      mat4PerspectiveFromVRFieldOfView(vrFovLeft, 1.0, 4096.0, leftProjMat);
+      getViewMatrix(leftViewMat, true, vrPose, leftEye);
+      mat4.perspectiveFromFieldOfView(leftProjMat, leftEye.fieldOfView, 1.0, 4096.0);
 
       map.draw(leftViewMat, leftProjMat);
 
       // Right Eye
       gl.viewport(canvas.width / 2.0, 0, canvas.width / 2.0, canvas.height);
-      getViewMatrix(rightViewMat, true, vrPosition, vrEyeRight);
-      mat4PerspectiveFromVRFieldOfView(vrFovRight, 1.0, 4096.0, rightProjMat);
+      getViewMatrix(rightViewMat, true, vrPose, rightEye);
+      mat4.perspectiveFromFieldOfView(rightProjMat, rightEye.fieldOfView, 1.0, 4096.0);
 
       map.draw(rightViewMat, rightProjMat);
     }
+
+    if (vrDisplay && vrDisplay.isPresenting)
+      vrDisplay.submitFrame(vrPose);
 }
 
 var pressed = new Array(128);
@@ -350,7 +317,7 @@ function moveLookLocked(xDelta, yDelta) {
     while (zAngle >= Math.PI*2)
         zAngle -= Math.PI*2;
 
-  if (!vrEnabled) {
+  if (!isVRPresenting()) {
     xAngle += yDelta*0.0025;
     while (xAngle < -Math.PI*0.5)
         xAngle = -Math.PI*0.5;
@@ -367,8 +334,8 @@ var vrEuler = vec3.create();
 function moveViewOriented(dir, frameTime) {
   if(dir[0] !== 0 || dir[1] !== 0 || dir[2] !== 0) {
       mat4.identity(cameraMat);
-      if (vrEnabled) {
-        eulerFromQuaternion(vrEuler, vrPosition.orientation, 'YXZ');
+      if (isVRPresenting()) {
+        eulerFromQuaternion(vrEuler, vrPose.orientation, 'YXZ');
         mat4.rotateZ(cameraMat, cameraMat, zAngle - vrEuler[1]);
       } else {
         mat4.rotateZ(cameraMat, cameraMat, zAngle);
@@ -430,8 +397,8 @@ function updateInput(frameTime) {
         }
     }
 
-    if (vrEnabled && vrSensor) {
-      vrPosition = vrSensor.getState();
+    if (vrDisplay) {
+      vrPose = vrDisplay.getPose();
     }
 
     moveViewOriented(dir, frameTime);
@@ -466,21 +433,9 @@ function initEvents() {
             respawnPlayer(-1);
         }
         if(event.charCode == 'C'.charCodeAt(0) || event.charCode == 'c'.charCodeAt(0)) {
-            if (vrSensor && "zeroSensor" in vrSensor) {
-              vrSensor.zeroSensor();
+            if (vrDisplay) {
+              vrDisplay.resetPose();
             }
-        }
-        if(event.charCode == 'T'.charCodeAt(0) || event.charCode == 't'.charCodeAt(0)) {
-            if (vrHMD && "setTimewarp" in vrHMD) {
-              vrTimewarp = !vrTimewarp;
-              vrHMD.setTimewarp(vrTimewarp);
-            }
-        }
-        if(event.charCode == '='.charCodeAt(0)) {
-          vrIPDScale += 5.0;
-        }
-        if(event.charCode == '-'.charCodeAt(0)) {
-          vrIPDScale -= 5.0;
         }
     }, false);
 
@@ -642,22 +597,12 @@ function main() {
     var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
 
     onResize = function() {
-        if (vrEnabled && vrHMD) {
-          if ("getEyeParameters" in vrHMD) {
-            var leftEyeViewport = vrHMD.getEyeParameters("left").renderRect;
-            var rightEyeViewport = vrHMD.getEyeParameters("right").renderRect;
-            canvas.width = rightEyeViewport.left + rightEyeViewport.width;
-            canvas.height = Math.max(leftEyeViewport.height, rightEyeViewport.height);
-          } else if ("getRecommendedEyeRenderRect" in vrHMD) {
-            var leftEyeViewport = vrHMD.getRecommendedEyeRenderRect("left");
-            var rightEyeViewport = vrHMD.getRecommendedEyeRenderRect("right");
-            canvas.width = rightEyeViewport.left + rightEyeViewport.width;
-            canvas.height = Math.max(leftEyeViewport.height, rightEyeViewport.height);
-          } else {
-            // Hard-coded fallback, Oculus DK1 values.
-            canvas.width = 2000;
-            canvas.height = 1056;
-          }
+        if (vrDisplay && vrDisplay.isPresenting) {
+          var leftEye = vrDisplay.getEyeParameters("left");
+          var rightEye = vrDisplay.getEyeParameters("right");
+
+          canvas.width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+          canvas.height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
         } else {
           var devicePixelRatio = window.devicePixelRatio || 1;
 
@@ -669,7 +614,7 @@ function main() {
               canvas.height = canvas.clientHeight * devicePixelRatio;
           }
 
-          if (!vrEnabled) {
+          if (!isVRPresenting()) {
             gl.viewport(0, 0, canvas.width, canvas.height);
             mat4.perspective(leftProjMat, 45.0, canvas.width/canvas.height, 1.0, 4096.0);
           }
@@ -694,48 +639,10 @@ function main() {
         stats.domElement.style.display = showFPS.checked ? "block" : "none";
     });
 
-    function EnumerateVRDevice(devices) {
-        // Yay! We support WebVR!
-        for (var i = 0; i < devices.length; ++i) {
-            if (devices[i] instanceof HMDVRDevice) {
-                vrHMD = devices[i];
+    function EnumerateVRDisplays(displays) {
+        if (displays.length > 0) {
+            vrDisplay = displays[0];
 
-                if ('getEyeParameters' in vrHMD) {
-                  var leftEye = vrHMD.getEyeParameters("left");
-                  var rightEye = vrHMD.getEyeParameters("right");
-
-                  var e = leftEye.eyeTranslation;
-                  vrEyeLeft = [e.x, e.y, e.z];
-                  e = rightEye.eyeTranslation;
-                  vrEyeRight = [e.x, e.y, e.z];
-
-                  vrFovLeft = leftEye.recommendedFieldOfView;
-                  vrFovRight = rightEye.recommendedFieldOfView;
-                } else {
-                  var e = vrHMD.getEyeTranslation("left");
-                  vrEyeLeft = [e.x, e.y, e.z];
-                  e = vrHMD.getEyeTranslation("right");
-                  vrEyeRight = [e.x, e.y, e.z];
-
-                  vrFovLeft = vrHMD.getRecommendedEyeFieldOfView("left");
-                  vrFovRight = vrHMD.getRecommendedEyeFieldOfView("right");
-                }
-
-                break;
-            }
-        }
-
-        for (var i = 0; i < devices.length; ++i) {
-            if (devices[i] instanceof PositionSensorVRDevice) {
-                // If we have an HMD, make sure to get the associated sensor
-                if (vrHMD == null || vrHMD.hardwareUnitId == devices[i].hardwareUnitId) {
-                    vrSensor = devices[i];
-                    break;
-                }
-            }
-        }
-
-        if (vrHMD || vrSensor) {
             var vrToggle = document.getElementById("vrToggle");
             vrToggle.style.display = "block";
             var mobileVrBtn = document.getElementById("mobileVrBtn");
@@ -743,10 +650,8 @@ function main() {
         }
     }
 
-    if (navigator.getVRDevices) {
-      navigator.getVRDevices().then(EnumerateVRDevice);
-    } else if (navigator.mozGetVRDevices) {
-      navigator.mozGetVRDevices(EnumerateVRDevice);
+    if (navigator.getVRDisplays) {
+      navigator.getVRDisplays().then(EnumerateVRDisplays);
     }
 
     /*var playMusic = document.getElementById("playMusic");
@@ -762,8 +667,6 @@ function main() {
     document.addEventListener("fullscreenchange", function() {
         if(document.fullscreenElement) {
             viewport.requestPointerLock(); // Attempt to lock the mouse automatically on fullscreen
-        } else {
-          vrEnabled = false;
         }
         onResize();
     }, false);
@@ -778,15 +681,14 @@ function main() {
     mobileFullscreenBtn.addEventListener('click', goFullscreen, false);
 
     // VR
-    function goVrFullscreen() {
-        vrEnabled = true;
+    function presentVR() {
         xAngle = 0.0;
-        viewport.requestFullScreen({ vrDisplay: vrHMD });
+        vrDisplay.requestPresent({ source: viewport });
     }
     var vrBtn = document.getElementById("vrBtn");
     var mobileVrBtn = document.getElementById("mobileVrBtn");
-    vrBtn.addEventListener("click", goVrFullscreen, false);
-    mobileVrBtn.addEventListener("click", goVrFullscreen, false);
+    vrBtn.addEventListener("click", presentVR, false);
+    mobileVrBtn.addEventListener("click", presentVR, false);
 
 }
 window.addEventListener("load", main); // Fire this once the page is loaded up
