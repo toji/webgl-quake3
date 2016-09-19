@@ -65,6 +65,7 @@ var vrDisplay = null;
 // These values are in meters
 var playerHeight = 57; // Roughly where my eyes sit (1.78 meters off the ground)
 var vrIPDScale = 32.0; // There are 32 units per meter in Quake 3
+var vrFrameData = null;
 var vrPose = null;
 
 var vrDrawMode = 0;
@@ -410,7 +411,8 @@ function updateInput(frameTime) {
     }
 
     if (vrDisplay) {
-      vrPose = vrDisplay.getPose();
+      vrDisplay.getFrameData(vrFrameData);
+      vrPose = vrFrameData.pose;
     }
 
     moveViewOriented(dir, frameTime);
@@ -655,6 +657,8 @@ function main() {
       if (displays.length > 0) {
         vrDisplay = displays[0];
 
+        vrFrameData = new VRFrameData();
+
         var vrToggle = document.getElementById("vrToggle");
         vrToggle.style.display = "block";
         var mobileVrBtn = document.getElementById("mobileVrBtn");
@@ -703,7 +707,7 @@ function main() {
         vrDisplay.exitPresent();
       } else {
         xAngle = 0.0;
-        vrDisplay.requestPresent({ source: viewport });
+        vrDisplay.requestPresent([{ source: viewport }]);
       }
     }
     var vrBtn = document.getElementById("vrBtn");
