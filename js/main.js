@@ -234,7 +234,7 @@ function getViewMatrix(out, pose, eye) {
   //if (!vrDisplay || !vrDisplay.stageParameters)
     mat4.translate(out, out, [0, 0, playerHeight]);
   mat4.rotateZ(out, out, -zAngle);
-  mat4.rotateX(out, out, -xAngle+Math.PI/2);
+  mat4.rotateX(out, out, Math.PI/2);
 
   if (pose) {
     var orientation = pose.orientation;
@@ -257,6 +257,8 @@ function getViewMatrix(out, pose, eye) {
 
     mat4.multiply(out, out, poseMatrix);
   }
+
+  mat4.rotateX(out, out, -xAngle);
 
   mat4.invert(out, out);
 }
@@ -347,13 +349,13 @@ var vrEuler = vec3.create();
 function moveViewOriented(dir, frameTime) {
   if(dir[0] !== 0 || dir[1] !== 0 || dir[2] !== 0) {
       mat4.identity(cameraMat);
-      if (isVRPresenting()) {
+      if (vrPose) {
         eulerFromQuaternion(vrEuler, vrPose.orientation, 'YXZ');
         mat4.rotateZ(cameraMat, cameraMat, zAngle - vrEuler[1]);
       } else {
         mat4.rotateZ(cameraMat, cameraMat, zAngle);
       }
-       mat4.invert(cameraMat, cameraMat);
+      mat4.invert(cameraMat, cameraMat);
 
       vec3.transformMat4(dir, dir, cameraMat);
   }
