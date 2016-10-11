@@ -574,7 +574,7 @@ function getAvailableContext(canvas, contextList) {
     return null;
 }
 
-function renderLoop(gl, element, stats) {
+function renderLoop(gl, stats) {
     var startTime = new Date().getTime();
     var lastTimestamp = startTime;
     var lastFps = startTime;
@@ -584,7 +584,11 @@ function renderLoop(gl, element, stats) {
     function onRequestedFrame(){
         timestamp = new Date().getTime();
 
-        window.requestAnimationFrame(onRequestedFrame, element);
+        if (vrDisplay && vrDisplay.isPresenting) {
+          vrDisplay.requestAnimationFrame(onRequestedFrame);
+        } else {
+          window.requestAnimationFrame(onRequestedFrame);
+        }
 
         frameId++;
         if (SKIP_FRAMES != 0 && frameId % SKIP_FRAMES != 0)
@@ -600,7 +604,7 @@ function renderLoop(gl, element, stats) {
 
         stats.end();
     }
-    window.requestAnimationFrame(onRequestedFrame, element);
+    window.requestAnimationFrame(onRequestedFrame);
 }
 
 function main() {
@@ -644,7 +648,7 @@ function main() {
         document.getElementById('viewport-info').style.display = 'block';
         initEvents();
         initGL(gl, canvas);
-        renderLoop(gl, canvas, stats);
+        renderLoop(gl, stats);
     }
 
     onResize();
