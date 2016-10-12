@@ -401,7 +401,7 @@ function updateInput(frameTime) {
                 filterDeadzone(pad.axes[3]) * 25.0
             );
 
-            for(var j = 0; j < Math.max(pad.buttons.length, 4); ++j) {
+            for(var j = 0; j < Math.min(pad.buttons.length, 4); ++j) {
                 var button = pad.buttons[j];
                 if (typeof(button) == "number" && button == 1.0) {
                     playerMover.jump();
