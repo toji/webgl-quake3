@@ -50,8 +50,8 @@
             if("webkitFullscreenElement" in document) {
                 return function() { return document.webkitFullscreenElement; };
             }
-            if("mozFullscreenElement" in document) {
-                return function() { return document.mozFullscreenElement; };
+            if("mozFullScreenElement" in document) {
+                return function() { return document.mozFullScreenElement; };
             }
             return function() { return null; }; // not supported
         })();
