@@ -48,7 +48,7 @@ var mapShaders = ['scripts/web_demo.shader'];
 
 // ===========================================
 // Everything below here is common to all maps
-var leftViewMat, rightViewMat, leftProjMat, rightProjMat;
+var leftViewMat, rightViewMat, projMat;
 var leftViewport, rightViewport;
 var activeShader;
 var map, playerMover;
@@ -100,8 +100,7 @@ function initGL(gl, canvas) {
 
     leftViewMat = mat4.create();
     rightViewMat = mat4.create();
-    leftProjMat = mat4.create();
-    rightProjMat = mat4.create();
+    projMat = mat4.create();
 
     leftViewport = { x: 0, y: 0, width: 0, height: 0 };
     rightViewport = { x: 0, y: 0, width: 0, height: 0 };
@@ -214,6 +213,12 @@ var lastMove = 0;
 function onFrame(gl, event) {
     if(!map || !playerMover) { return; }
 
+    // Update VR pose if needed
+    if (vrDisplay) {
+      vrDisplay.getFrameData(vrFrameData);
+      vrPose = vrFrameData.pose;
+    }
+
     // Update player movement @ 60hz
     // The while ensures that we update at a fixed rate even if the rendering bogs down
     while(event.elapsed - lastMove >= 16) {
@@ -224,6 +229,9 @@ function onFrame(gl, event) {
     // For great laggage!
     for (var i = 0; i < REPEAT_FRAMES; ++i)
       drawFrame(gl);
+
+    if (vrDisplay && vrDisplay.isPresenting)
+      vrDisplay.submitFrame(vrPose);
 }
 
 var poseMatrix = mat4.create();
@@ -276,7 +284,7 @@ function drawFrame(gl) {
       getViewMatrix(leftViewMat, vrPose);
 
       // Here's where all the magic happens...
-      map.draw(leftViewMat, leftProjMat);
+      map.draw(leftViewMat, projMat);
     } else if (vrDrawMode == 1) {
       var canvas = document.getElementById("viewport");
       leftViewport.width = canvas.width / 2.0;
@@ -290,13 +298,10 @@ function drawFrame(gl) {
       var rightEye = vrDisplay.getEyeParameters("right");
 
       getViewMatrix(leftViewMat, vrPose, leftEye);
-      mat4.perspectiveFromFieldOfView(projectionMat, leftEye.fieldOfView, 1.0, 4096.0);
-
       getViewMatrix(rightViewMat, vrPose, rightEye);
-      mat4.perspectiveFromFieldOfView(projectionMat, rightEye.fieldOfView, 1.0, 4096.0);
 
-      map.draw(leftViewMat, leftProjMat, leftViewport,
-               rightViewMat, rightProjMat, rightViewport);
+      map.draw(leftViewMat, vrFrameData.leftProjectionMatrix, leftViewport,
+               rightViewMat, vrFrameData.rightProjectionMatrix, rightViewport);
     } else {
       var canvas = document.getElementById("viewport");
 
@@ -306,20 +311,15 @@ function drawFrame(gl) {
       // Left Eye
       gl.viewport(0, 0, canvas.width / 2.0, canvas.height);
       getViewMatrix(leftViewMat, vrPose, leftEye);
-      mat4.perspectiveFromFieldOfView(leftProjMat, leftEye.fieldOfView, 1.0, 4096.0);
 
-      map.draw(leftViewMat, leftProjMat);
+      map.draw(leftViewMat, vrFrameData.leftProjectionMatrix);
 
       // Right Eye
       gl.viewport(canvas.width / 2.0, 0, canvas.width / 2.0, canvas.height);
       getViewMatrix(rightViewMat, vrPose, rightEye);
-      mat4.perspectiveFromFieldOfView(rightProjMat, rightEye.fieldOfView, 1.0, 4096.0);
 
-      map.draw(rightViewMat, rightProjMat);
+      map.draw(rightViewMat, vrFrameData.rightProjectionMatrix);
     }
-
-    if (vrDisplay && vrDisplay.isPresenting)
-      vrDisplay.submitFrame(vrPose);
 }
 
 var pressed = new Array(128);
@@ -410,11 +410,6 @@ function updateInput(frameTime) {
                 }
             }
         }
-    }
-
-    if (vrDisplay) {
-      vrDisplay.getFrameData(vrFrameData);
-      vrPose = vrFrameData.pose;
     }
 
     moveViewOriented(dir, frameTime);
@@ -636,7 +631,7 @@ function main() {
 
           if (!isVRPresenting()) {
             gl.viewport(0, 0, canvas.width, canvas.height);
-            mat4.perspective(leftProjMat, 45.0, canvas.width/canvas.height, 1.0, 4096.0);
+            mat4.perspective(projMat, 45.0, canvas.width/canvas.height, 1.0, 4096.0);
           }
         }
     }
@@ -662,6 +657,9 @@ function main() {
     function EnumerateVRDisplays(displays) {
       if (displays.length > 0) {
         vrDisplay = displays[0];
+
+        vrDisplay.depthNear = 1.0;
+        vrDisplay.depthFar = 4096.0;
 
         vrFrameData = new VRFrameData();
 
