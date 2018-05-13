@@ -447,7 +447,16 @@ q3bsp.prototype.setViewport = function(viewport) {
     }
 }
 
-q3bsp.prototype.draw = function(leftViewMat, leftProjMat, leftViewport, rightViewMat, rightProjMat, rightViewport) {
+q3bsp.prototype.draw = function(viewMat, projMat) {
+    this.drawViews([{viewMat: viewMat, projMat: projMat}]);
+}
+
+q3bsp.prototype.drawViews = function(views) {
+    var viewCount = views.length;
+    if (viewCount == 1 && views[0].viewport) {
+        this.setViewport(views[0].viewport);
+    }
+    
     if(this.vertexBuffer === null || this.indexBuffer === null) { return; } // Not ready to draw yet
     
     var gl = this.gl; // Easier to type and potentially a bit faster
@@ -473,15 +482,12 @@ q3bsp.prototype.draw = function(leftViewMat, leftProjMat, leftViewport, rightVie
                     var shaderProgram = q3glshader.setShaderStage(gl, this.skyShader, stage, time);
                     if(!shaderProgram) { continue; }
                     this.bindSkyAttribs(shaderProgram);
-                    
-                    // Draw Sky geometry
-                    this.bindSkyMatrix(shaderProgram, leftViewMat, leftProjMat);
-                    this.setViewport(leftViewport);
-                    gl.drawElements(gl.TRIANGLES, this.skyboxIndexCount, gl.UNSIGNED_SHORT, 0);
 
-                    if (rightViewMat) {
-                        this.bindSkyMatrix(shaderProgram, rightViewMat, rightProjMat);
-                        this.setViewport(rightViewport);
+                    // Draw Sky geometry
+                    for (var v = 0; v < viewCount; ++v) {
+                        if (viewCount > 1)
+                            this.setViewport(views[v].viewport);
+                        this.bindSkyMatrix(shaderProgram, views[v].viewMat, views[v].projMat);
                         gl.drawElements(gl.TRIANGLES, this.skyboxIndexCount, gl.UNSIGNED_SHORT, 0);
                     }
                 }
@@ -500,28 +506,13 @@ q3bsp.prototype.draw = function(leftViewMat, leftProjMat, leftViewport, rightVie
             var shaderProgram = q3glshader.setShaderStage(gl, shader, shader.stages[0], time);
             this.bindShaderAttribs(shaderProgram);
 
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, q3glshader.defaultTexture);
+            for (var v = 0; v < viewCount; ++v) {
+                if (viewCount > 1)
+                    this.setViewport(views[v].viewport);
+                this.bindShaderMatrix(shaderProgram, views[v].viewMat, views[v].projMat);
 
-            this.bindShaderMatrix(shaderProgram, leftViewMat, leftProjMat);
-            this.setViewport(leftViewport);
-            for(i = 0; i < this.unshadedSurfaces.length; ++i) {
-                var surface = this.unshadedSurfaces[i];
-                gl.drawElements(gl.TRIANGLES, surface.elementCount, gl.UNSIGNED_SHORT, surface.indexOffset);
-            }
-            for(i = 0; i < this.defaultSurfaces.length; ++i) {
-                var surface = this.defaultSurfaces[i];
-                var stage = surface.shader.stages[0];
-                gl.bindTexture(gl.TEXTURE_2D, stage.texture);
-                gl.drawElements(gl.TRIANGLES, surface.elementCount, gl.UNSIGNED_SHORT, surface.indexOffset);
-            }
-
-            if (rightViewMat) {
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, q3glshader.defaultTexture);
-
-                this.bindShaderMatrix(shaderProgram, rightViewMat, rightProjMat);
-                this.setViewport(rightViewport);
                 for(i = 0; i < this.unshadedSurfaces.length; ++i) {
                     var surface = this.unshadedSurfaces[i];
                     gl.drawElements(gl.TRIANGLES, surface.elementCount, gl.UNSIGNED_SHORT, surface.indexOffset);
@@ -545,18 +536,10 @@ q3bsp.prototype.draw = function(leftViewMat, leftProjMat, leftViewport, rightVie
             this.bindShaderAttribs(shaderProgram);
             gl.activeTexture(gl.TEXTURE0);
 
-            this.bindShaderMatrix(shaderProgram, leftViewMat, leftProjMat);
-            this.setViewport(leftViewport);
-            for(i = 0; i < this.modelSurfaces.length; ++i) {
-                var surface = this.modelSurfaces[i];
-                var stage = surface.shader.stages[0];
-                gl.bindTexture(gl.TEXTURE_2D, stage.texture);
-                gl.drawElements(gl.TRIANGLES, surface.elementCount, gl.UNSIGNED_SHORT, surface.indexOffset);
-            }
-
-            if (rightViewMat) {
-                this.bindShaderMatrix(shaderProgram, rightViewMat, rightProjMat);
-                this.setViewport(rightViewport);
+            for (var v = 0; v < viewCount; ++v) {
+                if (viewCount > 1)
+                    this.setViewport(views[v].viewport);
+                this.bindShaderMatrix(shaderProgram, views[v].viewMat, views[v].projMat);
                 for(i = 0; i < this.modelSurfaces.length; ++i) {
                     var surface = this.modelSurfaces[i];
                     var stage = surface.shader.stages[0];
@@ -586,14 +569,11 @@ q3bsp.prototype.draw = function(leftViewMat, leftProjMat, leftViewport, rightVie
                 var shaderProgram = q3glshader.setShaderStage(gl, shader, stage, time);
                 if(!shaderProgram) { continue; }
                 this.bindShaderAttribs(shaderProgram);
-                this.bindShaderMatrix(shaderProgram, leftViewMat, leftProjMat);
-                this.setViewport(leftViewport);
-                // Draw all geometry that uses this textures
-                gl.drawElements(gl.TRIANGLES, surface.elementCount, gl.UNSIGNED_SHORT, surface.indexOffset);
 
-                if (rightViewMat) {
-                    this.bindShaderMatrix(shaderProgram, rightViewMat, rightProjMat);
-                    this.setViewport(rightViewport);
+                for (var v = 0; v < viewCount; ++v) {
+                    if (viewCount > 1)
+                        this.setViewport(views[v].viewport);
+                    this.bindShaderMatrix(shaderProgram, views[v].viewMat, views[v].projMat);
                     // Draw all geometry that uses this textures
                     gl.drawElements(gl.TRIANGLES, surface.elementCount, gl.UNSIGNED_SHORT, surface.indexOffset);
                 }

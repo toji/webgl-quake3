@@ -27,7 +27,7 @@
  */
 
 importScripts('./util/binary-file.js');
-importScripts('./util/gl-matrix-min.2.3.2.js');
+importScripts('./util/gl-matrix-min.js');
 
 onmessage = function(msg) {
     switch(msg.data.type) {

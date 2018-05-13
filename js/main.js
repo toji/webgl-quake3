@@ -59,22 +59,25 @@ var xAngle = 0;
 var cameraPosition = [0, 0, 0];
 var onResize = null;
 
-// VR Globals
-var vrDisplay = null;
+// WebXR Globals
+var xrDevice = null;
+var xrSession = null;
+var xrFrameOfReference = null;
+var xrFrame = null;
+var xrPose = null;
+var xrViews = [];
 
 // These values are in meters
 var playerHeight = 57; // Roughly where my eyes sit (1.78 meters off the ground)
-var vrIPDScale = 32.0; // There are 32 units per meter in Quake 3
-var vrFrameData = null;
-var vrPose = null;
+var xrIPDScale = 32.0; // There are 32 units per meter in Quake 3
 
-var vrDrawMode = 0;
+var xrDrawMode = 0;
 
 var SKIP_FRAMES = 0;
 var REPEAT_FRAMES = 1;
 
-function isVRPresenting() {
-  return (vrDisplay && vrDisplay.isPresenting);
+function isXRPresenting() {
+  return (xrSession && xrSession.exclusive);
 }
 
 function getQueryVariable(variable) {
@@ -118,9 +121,9 @@ function initMap(gl) {
         tesselation = parseInt(tesselation, 10);
     }
 
-    var vrMode = getQueryVariable("vrDrawMode");
-    if (vrMode) {
-      vrDrawMode = parseInt(vrMode, 10);
+    var xrMode = getQueryVariable("vrDrawMode");
+    if (xrMode) {
+      xrDrawMode = parseInt(xrMode, 10);
     }
 
     map = new q3bsp(gl);
@@ -213,12 +216,6 @@ var lastMove = 0;
 function onFrame(gl, event) {
     if(!map || !playerMover) { return; }
 
-    // Update VR pose if needed
-    if (vrDisplay) {
-      vrDisplay.getFrameData(vrFrameData);
-      vrPose = vrFrameData.pose;
-    }
-
     // Update player movement @ 60hz
     // The while ensures that we update at a fixed rate even if the rendering bogs down
     while(event.elapsed - lastMove >= 16) {
@@ -229,23 +226,20 @@ function onFrame(gl, event) {
     // For great laggage!
     for (var i = 0; i < REPEAT_FRAMES; ++i)
       drawFrame(gl);
-
-    if (vrDisplay && vrDisplay.isPresenting)
-      vrDisplay.submitFrame(vrPose);
 }
 
 var poseMatrix = mat4.create();
-function getViewMatrix(out, pose, eye) {
+function getViewMatrix(out, pose, view) {
   mat4.identity(out);
 
   mat4.translate(out, out, playerMover.position);
-  //if (!vrDisplay || !vrDisplay.stageParameters)
+  if (!pose)
     mat4.translate(out, out, [0, 0, playerHeight]);
   mat4.rotateZ(out, out, -zAngle);
   mat4.rotateX(out, out, Math.PI/2);
 
   if (pose) {
-    var orientation = pose.orientation;
+    /*var orientation = pose.orientation;
     var position = pose.position;
     if (!orientation) { orientation = [0, 0, 0, 1]; }
     if (!position) { position = [0, 0, 0]; }
@@ -254,15 +248,17 @@ function getViewMatrix(out, pose, eye) {
       position[0] * vrIPDScale,
       position[1] * vrIPDScale,
       position[2] * vrIPDScale
-    ]);
+    ]);*/
     /*if (vrDisplay.stageParameters) {
       mat4.multiply(poseMatrix, vrDisplay.stageParameters.sittingToStandingTransform, out);
     }*/
 
-    if (eye) {
+    /*if (eye) {
       mat4.translate(poseMatrix, poseMatrix, [eye.offset[0] * vrIPDScale, eye.offset[1] * vrIPDScale, eye.offset[2] * vrIPDScale]);
-    }
+    }*/
 
+    mat4.scale(poseMatrix, pose.getViewMatrix(view), [1/xrIPDScale, 1/xrIPDScale, 1/xrIPDScale]);
+    mat4.invert(poseMatrix, poseMatrix);
     mat4.multiply(out, out, poseMatrix);
   }
 
@@ -275,50 +271,47 @@ function getViewMatrix(out, pose, eye) {
 function drawFrame(gl) {
     // Clear back buffer but not color buffer (we expect the entire scene to be overwritten)
     gl.depthMask(true);
-    gl.clear(gl.DEPTH_BUFFER_BIT);
 
     if(!map || !playerMover) { return; }
 
-    if (!isVRPresenting()) {
+    if (!xrFrame) {
+      // Standard rendering path.
+
       // Matrix setup
-      getViewMatrix(leftViewMat, vrPose);
+      getViewMatrix(leftViewMat);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.clear(gl.DEPTH_BUFFER_BIT);
 
       // Here's where all the magic happens...
       map.draw(leftViewMat, projMat);
-    } else if (vrDrawMode == 1) {
-      var canvas = document.getElementById("viewport");
-      leftViewport.width = canvas.width / 2.0;
-      leftViewport.height = canvas.height;
-
-      rightViewport.x = canvas.width / 2.0;
-      rightViewport.width = canvas.width / 2.0;
-      rightViewport.height = canvas.height;
-
-      var leftEye = vrDisplay.getEyeParameters("left");
-      var rightEye = vrDisplay.getEyeParameters("right");
-
-      getViewMatrix(leftViewMat, vrPose, leftEye);
-      getViewMatrix(rightViewMat, vrPose, rightEye);
-
-      map.draw(leftViewMat, vrFrameData.leftProjectionMatrix, leftViewport,
-               rightViewMat, vrFrameData.rightProjectionMatrix, rightViewport);
     } else {
-      var canvas = document.getElementById("viewport");
+      // WebXR rendering path.
 
-      var leftEye = vrDisplay.getEyeParameters("left");
-      var rightEye = vrDisplay.getEyeParameters("right");
+      // If the number of views has changed since the last frame the rebuild the
+      // list.
+      if (xrViews.length != xrFrame.views.length) {
+        xrViews = [];
+      }
 
-      // Left Eye
-      gl.viewport(0, 0, canvas.width / 2.0, canvas.height);
-      getViewMatrix(leftViewMat, vrPose, leftEye);
+      for (var v = 0; v < xrFrame.views.length; ++v) {
+        if (xrViews.length <= v) {
+          xrViews.push({
+            viewMat: mat4.create(),
+            projMat: null,
+            viewport: null,
+          });
+        }
+        var view = xrViews[v];
+        getViewMatrix(view.viewMat, xrPose, xrFrame.views[v]);
+        view.projMat = xrFrame.views[v].projectionMatrix;
+        view.viewport = xrSession.baseLayer.getViewport(xrFrame.views[v]);
+      }
 
-      map.draw(leftViewMat, vrFrameData.leftProjectionMatrix);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, xrSession.baseLayer.framebuffer);
+      gl.clear(gl.DEPTH_BUFFER_BIT);
 
-      // Right Eye
-      gl.viewport(canvas.width / 2.0, 0, canvas.width / 2.0, canvas.height);
-      getViewMatrix(rightViewMat, vrPose, rightEye);
-
-      map.draw(rightViewMat, vrFrameData.rightProjectionMatrix);
+      map.drawViews(xrViews);
     }
 }
 
@@ -332,7 +325,7 @@ function moveLookLocked(xDelta, yDelta) {
     while (zAngle >= Math.PI*2)
         zAngle -= Math.PI*2;
 
-  if (!isVRPresenting()) {
+  if (!isXRPresenting()) {
     xAngle += yDelta*0.0025;
     while (xAngle < -Math.PI*0.5)
         xAngle = -Math.PI*0.5;
@@ -345,13 +338,15 @@ function filterDeadzone(value) {
     return Math.abs(value) > 0.35 ? value : 0;
 }
 
-var vrEuler = vec3.create();
+var xrOrientation = quat.create();
+var xrEuler = vec3.create();
 function moveViewOriented(dir, frameTime) {
   if(dir[0] !== 0 || dir[1] !== 0 || dir[2] !== 0) {
       mat4.identity(cameraMat);
-      if (vrPose) {
-        eulerFromQuaternion(vrEuler, vrPose.orientation, 'YXZ');
-        mat4.rotateZ(cameraMat, cameraMat, zAngle - vrEuler[1]);
+      if (xrPose) {
+        mat4.getRotation(xrOrientation, xrPose.poseModelMatrix);
+        eulerFromQuaternion(xrEuler, xrOrientation, 'YXZ');
+        mat4.rotateZ(cameraMat, cameraMat, zAngle - xrEuler[1]);
       } else {
         mat4.rotateZ(cameraMat, cameraMat, zAngle);
       }
@@ -383,33 +378,35 @@ function updateInput(frameTime) {
         dir[0] += 1;
     }
 
-    var gamepads = [];
-    if (navigator.getGamepads) {
-        gamepads = navigator.getGamepads();
-    } else if (navigator.webkitGetGamepads) {
-        gamepads = navigator.webkitGetGamepads();
-    }
+    if (!xrSession) {
+      var gamepads = [];
+      if (navigator.getGamepads) {
+          gamepads = navigator.getGamepads();
+      } else if (navigator.webkitGetGamepads) {
+          gamepads = navigator.webkitGetGamepads();
+      }
 
-    for (var i = 0; i < gamepads.length; ++i) {
-        var pad = gamepads[i];
-        if(pad) {
-            dir[0] += filterDeadzone(pad.axes[0]);
-            dir[1] -= filterDeadzone(pad.axes[1]);
+      for (var i = 0; i < gamepads.length; ++i) {
+          var pad = gamepads[i];
+          if(pad) {
+              dir[0] += filterDeadzone(pad.axes[0]);
+              dir[1] -= filterDeadzone(pad.axes[1]);
 
-            moveLookLocked(
-                filterDeadzone(pad.axes[2]) * 25.0,
-                filterDeadzone(pad.axes[3]) * 25.0
-            );
+              moveLookLocked(
+                  filterDeadzone(pad.axes[2]) * 25.0,
+                  filterDeadzone(pad.axes[3]) * 25.0
+              );
 
-            for(var j = 0; j < Math.min(pad.buttons.length, 4); ++j) {
-                var button = pad.buttons[j];
-                if (typeof(button) == "number" && button == 1.0) {
-                    playerMover.jump();
-                } else if (button.pressed) {
-                    playerMover.jump();
-                }
-            }
-        }
+              for(var j = 0; j < Math.min(pad.buttons.length, 4); ++j) {
+                  var button = pad.buttons[j];
+                  if (typeof(button) == "number" && button == 1.0) {
+                      playerMover.jump();
+                  } else if (button.pressed) {
+                      playerMover.jump();
+                  }
+              }
+          }
+      }
     }
 
     moveViewOriented(dir, frameTime);
@@ -442,11 +439,6 @@ function initEvents() {
     document.addEventListener("keypress", function(event) {
         if(event.charCode == 'R'.charCodeAt(0) || event.charCode == 'r'.charCodeAt(0)) {
             respawnPlayer(-1);
-        }
-        if(event.charCode == 'C'.charCodeAt(0) || event.charCode == 'c'.charCodeAt(0)) {
-            if (vrDisplay) {
-              vrDisplay.resetPose();
-            }
         }
     }, false);
 
@@ -560,7 +552,10 @@ function getAvailableContext(canvas, contextList) {
     if (canvas.getContext) {
         for(var i = 0; i < contextList.length; ++i) {
             try {
-                var context = canvas.getContext(contextList[i], { antialias:false });
+                var context = canvas.getContext(contextList[i], {
+                    antialias:false,
+                    compatibleXRDevice: xrDevice
+                });
                 if(context !== null)
                     return context;
             } catch(ex) { }
@@ -569,6 +564,8 @@ function getAvailableContext(canvas, contextList) {
     return null;
 }
 
+var rafCallback = null;
+
 function renderLoop(gl, stats) {
     var startTime = new Date().getTime();
     var lastTimestamp = startTime;
@@ -576,13 +573,21 @@ function renderLoop(gl, stats) {
 
     var frameId = 0;
 
-    function onRequestedFrame(){
+    function onRequestedFrame(t, frame){
         timestamp = new Date().getTime();
 
-        if (vrDisplay && vrDisplay.isPresenting) {
-          vrDisplay.requestAnimationFrame(onRequestedFrame);
+        if (xrSession) {
+          xrSession.requestAnimationFrame(onRequestedFrame);
         } else {
           window.requestAnimationFrame(onRequestedFrame);
+        }
+
+        if (xrSession && frame) {
+          xrFrame = frame;
+          xrPose = frame.getDevicePose(xrFrameOfReference);
+        } else {
+          xrFrame = null;
+          xrPose = null;
         }
 
         frameId++;
@@ -600,6 +605,7 @@ function renderLoop(gl, stats) {
         stats.end();
     }
     window.requestAnimationFrame(onRequestedFrame);
+    rafCallback = onRequestedFrame;
 }
 
 function main() {
@@ -612,13 +618,7 @@ function main() {
     var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
 
     onResize = function() {
-        if (vrDisplay && vrDisplay.isPresenting) {
-          var leftEye = vrDisplay.getEyeParameters("left");
-          var rightEye = vrDisplay.getEyeParameters("right");
-
-          canvas.width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
-          canvas.height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
-        } else {
+        if (!isXRPresenting()) {
           var devicePixelRatio = window.devicePixelRatio || 1;
 
           if(document.fullscreenElement) {
@@ -629,10 +629,8 @@ function main() {
               canvas.height = canvas.clientHeight * devicePixelRatio;
           }
 
-          if (!isVRPresenting()) {
-            gl.viewport(0, 0, canvas.width, canvas.height);
-            mat4.perspective(projMat, 45.0, canvas.width/canvas.height, 1.0, 4096.0);
-          }
+          gl.viewport(0, 0, canvas.width, canvas.height);
+          mat4.perspective(projMat, 45.0, canvas.width/canvas.height, 1.0, 4096.0);
         }
     }
 
@@ -653,31 +651,6 @@ function main() {
     showFPS.addEventListener("change", function() {
         stats.domElement.style.display = showFPS.checked ? "block" : "none";
     });
-
-    function EnumerateVRDisplays(displays) {
-      if (displays.length > 0) {
-        vrDisplay = displays[0];
-
-        vrDisplay.depthNear = 1.0;
-        vrDisplay.depthFar = 4096.0;
-
-        vrFrameData = new VRFrameData();
-
-        var vrToggle = document.getElementById("vrToggle");
-        vrToggle.style.display = "block";
-        var mobileVrBtn = document.getElementById("mobileVrBtn");
-        mobileVrBtn.style.display = "block";
-
-        // Handle VR presentation change
-        window.addEventListener("vrdisplaypresentchange", function() {
-          onResize();
-        }, false);
-      }
-    }
-
-    if (navigator.getVRDisplays) {
-      navigator.getVRDisplays().then(EnumerateVRDisplays);
-    }
 
     /*var playMusic = document.getElementById("playMusic");
     playMusic.addEventListener("change", function() {
@@ -705,19 +678,71 @@ function main() {
     fullscreenButton.addEventListener('click', goFullscreen, false);
     mobileFullscreenBtn.addEventListener('click', goFullscreen, false);
 
-    // VR
-    function presentVR() {
-      if (vrDisplay.isPresenting) {
-        vrDisplay.exitPresent();
+    // XR
+    function presentXR() {
+      if (xrSession) {
+        xrSession.end();
       } else {
         xAngle = 0.0;
-        vrDisplay.requestPresent([{ source: viewport }]);
+        xrDevice.requestSession({ exclusive: true }).then(function(session) {
+          session.depthNear = 1.0;
+          session.depthFar = 4096.0;
+
+          session.addEventListener('end', function() {
+            xrSession = null;
+            xrFrame = null;
+            xrPose = null;
+            onResize();
+          });
+
+          session.addEventListener('select', function(evt) {
+            // ?
+          });
+
+          session.addEventListener('selectstart', function(evt) {
+            pressed['W'.charCodeAt(0)] = true;
+          });
+
+          session.addEventListener('selectend', function(evt) {
+            pressed['W'.charCodeAt(0)] = false;
+          });
+
+          session.requestFrameOfReference('stage').then(function(frameOfRef) {
+            xrFrameOfReference = frameOfRef;
+            session.baseLayer = new XRWebGLLayer(session, gl);
+            xrSession = session;
+            xrSession.requestAnimationFrame(rafCallback);
+          });
+        });
       }
     }
     var vrBtn = document.getElementById("vrBtn");
     var mobileVrBtn = document.getElementById("mobileVrBtn");
-    vrBtn.addEventListener("click", presentVR, false);
-    mobileVrBtn.addEventListener("click", presentVR, false);
+    vrBtn.addEventListener("click", presentXR, false);
+    mobileVrBtn.addEventListener("click", presentXR, false);
 
 }
-window.addEventListener("load", main); // Fire this once the page is loaded up
+
+// Fire this once the page is loaded up
+window.addEventListener("load", function() {
+  function OnXRDeviceFound(device) {
+      xrDevice = device;
+
+      var vrToggle = document.getElementById("vrToggle");
+      vrToggle.style.display = "block";
+      var mobileVrBtn = document.getElementById("mobileVrBtn");
+      mobileVrBtn.style.display = "block";
+
+      /*gl.setCompatibleXRDevice(xrDevice).then(function() {
+        
+      });*/
+      main();
+  }
+
+  if (navigator.xr) {
+      navigator.xr.requestDevice().then(OnXRDeviceFound).catch(main);
+  } else {
+    main();
+  }
+
+}); 
