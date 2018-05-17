@@ -3,21 +3,17 @@
 <html>
     <head>
         <title>Quake 3 WebGL Demo</title>
-        <!-- Origin Trial Token, feature = WebVR, origin = https://media.tojicode.com, expires = 2017-01-26 -->
-        <meta http-equiv="origin-trial" data-feature="WebVR" data-expires="2017-01-26" content="Agh8+gFQoU21/Ys9tXjHSph0Hpo/FdYuRtEyKFTyccQiHNmpQ8lSbeEIYfRcTwa+rNv5sTBuiWcP8zfvn0EJvg0AAABReyJvcmlnaW4iOiJodHRwczovL21lZGlhLnRvamljb2RlLmNvbTo0NDMiLCJmZWF0dXJlIjoiV2ViVlIiLCJleHBpcnkiOjE0ODU0NDk2NDV9">
+        <!-- Origin Trial Token, feature = WebXR Device API, origin = https://media.tojicode.com, expires = 2018-06-23 -->
+        <meta http-equiv="origin-trial" data-feature="WebXR Device API" data-expires="2018-06-23" content="Aqv5R/1a93uE3ukwAIVmV340aQjtra8FvJvtir6PpqSQK6AMQhctwTpHaxvZJktzmxxWO8rqn30uV5FNttYGagoAAABXeyJvcmlnaW4iOiJodHRwczovL21lZGlhLnRvamljb2RlLmNvbTo0NDMiLCJmZWF0dXJlIjoiV2ViWFJEZXZpY2UiLCJleHBpcnkiOjE1Mjk3ODMwMjN9">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+        <!-- WebXR polyfill -->
+        <script src='https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.js'></script>
 
         <!-- Common Utilities -->
         <script type="text/javascript" src="js/util/game-shim.js"></script>
         <script type="text/javascript" src="js/util/gl-matrix-min.js"></script>
         <script type="text/javascript" src="js/util/stats.min.js"></script>
-
-        <script>
-        window.WebVRConfig = {
-            MOUSE_KEYBOARD_CONTROLS_DISABLED: true
-        };
-        </script>
-        <script type="text/javascript" src="js/util/webvr-polyfill.js"></script>
 
         <!-- Quake3 Map Specific files -->
         <script type="text/javascript" src="js/main.js"></script>

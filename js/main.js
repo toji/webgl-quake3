@@ -25,6 +25,8 @@
  *    distribution.
  */
 
+var polyfill = new WebXRPolyfill();
+
 // The bits that need to change to load different maps are right here!
 // ===========================================
 
