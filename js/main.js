@@ -78,7 +78,7 @@ var SKIP_FRAMES = 0;
 var REPEAT_FRAMES = 1;
 
 function isXRPresenting() {
-  return (xrSession && xrSession.exclusive);
+  return !!xrSession;
 }
 
 function getQueryVariable(variable) {
@@ -306,10 +306,10 @@ function drawFrame(gl) {
         var view = xrViews[v];
         getViewMatrix(view.viewMat, xrPose, xrPose.views[v]);
         view.projMat = xrPose.views[v].projectionMatrix;
-        view.viewport = xrSession.baseLayer.getViewport(xrPose.views[v]);
+        view.viewport = xrSession.renderState.baseLayer.getViewport(xrPose.views[v]);
       }
 
-      gl.bindFramebuffer(gl.FRAMEBUFFER, xrSession.baseLayer.framebuffer);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, xrSession.renderState.baseLayer.framebuffer);
       gl.clear(gl.DEPTH_BUFFER_BIT);
 
       map.drawViews(xrViews);
@@ -555,7 +555,7 @@ function getAvailableContext(canvas, contextList) {
             try {
                 var context = canvas.getContext(contextList[i], {
                     antialias:false,
-                    compatibleXRDevice: xrDevice
+                    xrCompatible: true
                 });
                 if(context !== null)
                     return context;
