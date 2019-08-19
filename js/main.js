@@ -64,8 +64,7 @@ var onResize = null;
 // WebXR Globals
 var xrDevice = null;
 var xrSession = null;
-var xrFrameOfReference = null;
-var xrFrame = null;
+var xrReferenceSpace = null;
 var xrPose = null;
 var xrViews = [];
 
@@ -240,7 +239,7 @@ function getViewMatrix(out, pose, view) {
   mat4.rotateZ(out, out, -zAngle);
   mat4.rotateX(out, out, Math.PI/2);
 
-  if (pose) {
+  if (view) {
     /*var orientation = pose.orientation;
     var position = pose.position;
     if (!orientation) { orientation = [0, 0, 0, 1]; }
@@ -259,7 +258,7 @@ function getViewMatrix(out, pose, view) {
       mat4.translate(poseMatrix, poseMatrix, [eye.offset[0] * vrIPDScale, eye.offset[1] * vrIPDScale, eye.offset[2] * vrIPDScale]);
     }*/
 
-    mat4.scale(poseMatrix, pose.getViewMatrix(view), [1/xrIPDScale, 1/xrIPDScale, 1/xrIPDScale]);
+    mat4.scale(poseMatrix, view.transform.inverse.matrix, [1/xrIPDScale, 1/xrIPDScale, 1/xrIPDScale]);
     mat4.invert(poseMatrix, poseMatrix);
     mat4.multiply(out, out, poseMatrix);
   }
@@ -276,7 +275,7 @@ function drawFrame(gl) {
 
     if(!map || !playerMover) { return; }
 
-    if (!xrFrame) {
+    if (!xrPose) {
       // Standard rendering path.
 
       // Matrix setup
@@ -292,11 +291,11 @@ function drawFrame(gl) {
 
       // If the number of views has changed since the last frame the rebuild the
       // list.
-      if (xrViews.length != xrFrame.views.length) {
+      if (xrViews.length != xrPose.views.length) {
         xrViews = [];
       }
 
-      for (var v = 0; v < xrFrame.views.length; ++v) {
+      for (var v = 0; v < xrPose.views.length; ++v) {
         if (xrViews.length <= v) {
           xrViews.push({
             viewMat: mat4.create(),
@@ -305,9 +304,9 @@ function drawFrame(gl) {
           });
         }
         var view = xrViews[v];
-        getViewMatrix(view.viewMat, xrPose, xrFrame.views[v]);
-        view.projMat = xrFrame.views[v].projectionMatrix;
-        view.viewport = xrSession.baseLayer.getViewport(xrFrame.views[v]);
+        getViewMatrix(view.viewMat, xrPose, xrPose.views[v]);
+        view.projMat = xrPose.views[v].projectionMatrix;
+        view.viewport = xrSession.baseLayer.getViewport(xrPose.views[v]);
       }
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, xrSession.baseLayer.framebuffer);
@@ -346,7 +345,7 @@ function moveViewOriented(dir, frameTime) {
   if(dir[0] !== 0 || dir[1] !== 0 || dir[2] !== 0) {
       mat4.identity(cameraMat);
       if (xrPose) {
-        mat4.getRotation(xrOrientation, xrPose.poseModelMatrix);
+        mat4.getRotation(xrOrientation, xrPose.transform.matrix);
         eulerFromQuaternion(xrEuler, xrOrientation, 'YXZ');
         mat4.rotateZ(cameraMat, cameraMat, zAngle - xrEuler[1]);
       } else {
@@ -585,10 +584,8 @@ function renderLoop(gl, stats) {
         }
 
         if (xrSession && frame) {
-          xrFrame = frame;
-          xrPose = frame.getDevicePose(xrFrameOfReference);
+          xrPose = frame.getViewerPose(xrReferenceSpace);
         } else {
-          xrFrame = null;
           xrPose = null;
         }
 
@@ -686,13 +683,11 @@ function main() {
         xrSession.end();
       } else {
         xAngle = 0.0;
-        xrDevice.requestSession({ exclusive: true }).then(function(session) {
-          session.depthNear = 1.0;
-          session.depthFar = 4096.0;
-
+        navigator.xr.requestSession('immersive-vr', {
+            optionalFeatures: ['local-floor']
+        }).then(function(session) {
           session.addEventListener('end', function() {
             xrSession = null;
-            xrFrame = null;
             xrPose = null;
             onResize();
           });
@@ -709,9 +704,14 @@ function main() {
             pressed['W'.charCodeAt(0)] = false;
           });
 
-          session.requestFrameOfReference('stage').then(function(frameOfRef) {
-            xrFrameOfReference = frameOfRef;
-            session.baseLayer = new XRWebGLLayer(session, gl);
+          session.requestReferenceSpace('local-floor').then(function(refSpace) {
+            xrReferenceSpace = refSpace;
+
+            session.updateRenderState({
+              depthNear: 1.0,
+              depthFar: 4096.0,
+              baseLayer: new XRWebGLLayer(session, gl)
+            });
             xrSession = session;
             xrSession.requestAnimationFrame(rafCallback);
           });
@@ -727,24 +727,16 @@ function main() {
 
 // Fire this once the page is loaded up
 window.addEventListener("load", function() {
-  function OnXRDeviceFound(device) {
-      xrDevice = device;
-
-      var vrToggle = document.getElementById("vrToggle");
-      vrToggle.style.display = "block";
-      var mobileVrBtn = document.getElementById("mobileVrBtn");
-      mobileVrBtn.style.display = "block";
-
-      /*gl.setCompatibleXRDevice(xrDevice).then(function() {
-        
-      });*/
-      main();
+  function OnVRSupported() {
+    var vrToggle = document.getElementById("vrToggle");
+    vrToggle.style.display = "block";
+    var mobileVrBtn = document.getElementById("mobileVrBtn");
+    mobileVrBtn.style.display = "block";
   }
 
   if (navigator.xr) {
-      navigator.xr.requestDevice().then(OnXRDeviceFound).catch(main);
-  } else {
-    main();
+    navigator.xr.supportsSession('immersive-vr').then(OnVRSupported);
   }
 
+  main();
 }); 
