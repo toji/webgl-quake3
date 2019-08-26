@@ -94,7 +94,21 @@ q3glshader.defaultTexture = null;
 q3glshader.texMat = mat4.create();
 q3glshader.defaultProgram = null;
 
+q3glshader.s3tcExt = null;
+
+/*let BasisFile = null;
+
+BASIS().then((module) => {
+    BasisFile = module.BasisFile;
+    module.initializeBasis();
+});*/
+
 q3glshader.init = function(gl, lightmap) {
+    /*q3glshader.s3tcExt = gl.getExtension('WEBGL_compressed_texture_s3tc');
+    if (!q3glshader.s3tcExt) {
+        console.log('S3TC ext not supported');
+    }*/
+
     q3glshader.lightmap = lightmap;
     q3glshader.white = q3glshader.createSolidTexture(gl, [255,255,255,255]);
     
@@ -259,22 +273,45 @@ q3glshader.loadTexture = function(gl, surface, stage) {
     }
 };
 
-q3glshader.loadTextureUrl = function(gl, stage, url, onload) {
+let basisBasics = new BasisBasics();
+
+q3glshader.loadTextureUrlBasisWorker = function(gl, stage, url, onload) {
+    // Swap out the file extension
+    url = url.replace(/.png/, '.basis');
+
+    basisBasics.loadFromUrl(gl, `${q3bsp_base_folder}/${url}`).then((texture) => {
+        if(stage.clamp) {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        }
+        onload(texture);
+    });
+}
+
+// PNG variant
+q3glshader.loadTextureUrlImg = function(gl, stage, url, onload) {
     var image = new Image();
     image.onload = function() {
         var texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         if(stage.clamp) {
             gl.texParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE );
             gl.texParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE );
         }
         gl.generateMipmap(gl.TEXTURE_2D);
+
         onload(texture);
     }
     image.src = q3bsp_base_folder + '/' + url;
+}
+
+if (window.location.search.indexOf('png') >= 0) {
+    q3glshader.loadTextureUrl = q3glshader.loadTextureUrlImg;
+} else {
+    q3glshader.loadTextureUrl = q3glshader.loadTextureUrlBasisWorker;
 }
 
 q3glshader.createSolidTexture = function(gl, color) {
