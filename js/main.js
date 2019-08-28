@@ -613,8 +613,8 @@ function main() {
 
     var canvas = document.getElementById("viewport");
 
-    // Get the GL Context (try 'webgl' first, then fallback)
-    var gl = getAvailableContext(canvas, ['webgl', 'experimental-webgl']);
+    // Get the GL Context (try 'webgl2' first, then fallback)
+    var gl = getAvailableContext(canvas, ['webgl2', 'webgl', 'experimental-webgl']);
 
     onResize = function() {
         if (!isXRPresenting()) {
