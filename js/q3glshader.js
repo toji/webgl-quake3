@@ -267,7 +267,8 @@ q3glshader.loadTextureUrlBasisWorker = function(gl, stage, url, onload) {
     // Swap out the file extension
     url = url.replace(/.png/, '.basis');
 
-    basisBasics.loadFromUrl(gl, `${q3bsp_base_folder}/${url}`).then((result) => {
+    basisBasics.setContext(gl);
+    basisBasics.loadFromUrl(`${q3bsp_base_folder}/${url}`).then((result) => {
         if(stage.clamp) {
             gl.bindTexture(gl.TEXTURE_2D, result.texture);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -304,10 +305,10 @@ q3glshader.loadTextureUrlImg = function(gl, stage, url, onload) {
     image.src = q3bsp_base_folder + '/' + url;
 }
 
-if (window.location.search.indexOf('basis') >= 0) {
-    q3glshader.loadTextureUrl = q3glshader.loadTextureUrlBasisWorker;
-} else {
+if (window.location.search.indexOf('png') >= 0) {
     q3glshader.loadTextureUrl = q3glshader.loadTextureUrlImg;
+} else {
+    q3glshader.loadTextureUrl = q3glshader.loadTextureUrlBasisWorker;
 }
 
 q3glshader.createSolidTexture = function(gl, color) {
