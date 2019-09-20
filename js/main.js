@@ -555,6 +555,7 @@ function getAvailableContext(canvas, contextList) {
             try {
                 var context = canvas.getContext(contextList[i], {
                     antialias:false,
+                    alpha: false,
                     xrCompatible: true
                 });
                 if(context !== null)
