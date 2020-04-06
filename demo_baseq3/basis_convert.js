@@ -23,16 +23,16 @@ function recurse(dirPath) {
             } else if (stat.isFile()) {
                 if(file.endsWith('.png')) {
                     //fs.unlinkSync(fullPath);
-                    exec(`${basis_path} ${fullPath} -mipmap -output_path ${dirPath}`, (err, stdout, stderr) => {
-                        console.log(`Output for ${file}:`);
+                    exec(`${basis_path} ${fullPath} -uastc -uastc_level 2 -mipmap -output_path ${dirPath}`, (err, stdout, stderr) => {
                         if (err) {
-                            console.log(` - err: ${err}`); 
+                            console.log(`Error - ${file}:`);
+                            console.log(` - err: ${err}`);
+                            console.log(` - stdout: ${stdout}`);
+                            console.log(` - stderr: ${stderr}`);
                             return;
+                        } else {
+                            console.log(`Success - ${file}`);
                         }
-                        
-                        // the *entire* stdout and stderr (buffered)
-                        console.log(` - stdout: ${stdout}`);
-                        console.log(` - stderr: ${stderr}`);
                     });
                 }
             }
@@ -40,5 +40,5 @@ function recurse(dirPath) {
     });
 }
 
-//recurse(path.join(__dirname, 'models'));
+recurse(path.join(__dirname, 'models'));
 recurse(path.join(__dirname, 'textures'));

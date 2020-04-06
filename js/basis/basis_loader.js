@@ -21,6 +21,42 @@
  *    distribution.
  */
 
+/*
+ * Usage:
+ * // basis_loader.js should be loaded from the same directory as
+ * // basis_transcoder.js and basis_transcoder.wasm
+ *
+ * // Create the texture loader and set the WebGL context it should use. Spawns
+ * // a worker which handles all of the transcoding.
+ * let basisLoader = new BasisLoader();
+ * basisLoader.setWebGLContext(gl);
+ *
+ * // To allow separate color and alpha textures to be returned in cases where
+ * // it would provide higher quality:
+ * basisLoader.allowSeparateAlpha = true;
+ *
+ * // loadFromUrl() returns a promise which resolves to a completed WebGL
+ * // texture or rejects if there's an error loading.
+ * basisBasics.loadFromUrl(fullPathToTexture).then((result) => {
+ *   // WebGL color+alpha texture;
+ *   result.texture;
+ *
+ *   // WebGL alpha texture, only if basisLoader.allowSeparateAlpha is true.
+ *   // null if alpha is encoded in result.texture or result.alpha is false.
+ *   result.alphaTexture;
+ *
+ *   // True if the texture contained an alpha channel.
+ *   result.alpha;
+ *
+ *   // Number of mip levels in texture/alphaTexture
+ *   result.mipLevels;
+ *
+ *   // Dimensions of the base mip level.
+ *   result.width;
+ *   result.height;
+ * });
+ */
+
 // This file contains the code both for the main thread interface and the
 // worker that does the transcoding.
 const IN_WORKER = typeof importScripts === "function";
@@ -94,12 +130,13 @@ if (!IN_WORKER) {
     }
   };
 
-  class BasisBasics {
+  class BasisLoader {
     constructor() {
       this.gl = null;
       this.supportedFormats = {};
       this.pendingTextures = {};
       this.nextPendingTextureId = 1;
+      this.allowSeparateAlpha = false;
 
       // Reload the current script as a worker
       this.worker = new Worker(SCRIPT_PATH);
@@ -149,7 +186,7 @@ if (!IN_WORKER) {
       };
     }
 
-    setContext(gl) {
+    setWebGLContext(gl) {
       if (this.gl != gl) {
         this.gl = gl;
         if (gl) {
@@ -158,7 +195,8 @@ if (!IN_WORKER) {
             etc1: !!gl.getExtension('WEBGL_compressed_texture_etc1'),
             etc2: !!gl.getExtension('WEBGL_compressed_texture_etc'),
             pvrtc: !!gl.getExtension('WEBGL_compressed_texture_pvrtc'),
-            astc: !!gl.getExtension('WEBGL_compressed_texture_astc')
+            astc: !!gl.getExtension('WEBGL_compressed_texture_astc'),
+            bptc: !!gl.getExtension('EXT_texture_compression_bptc')
           };
         } else {
           this.supportedFormats = {};
@@ -166,6 +204,8 @@ if (!IN_WORKER) {
       }
     }
 
+    // This method changes the active texture unit's TEXTURE_2D binding
+    // immediately prior to resolving the returned promise.
     loadFromUrl(url) {
       let pendingTexture = new PendingTextureRequest(this.gl, url);
       this.pendingTextures[this.nextPendingTextureId] = pendingTexture;
@@ -173,6 +213,7 @@ if (!IN_WORKER) {
       this.worker.postMessage({
         id: this.nextPendingTextureId,
         url: url,
+        allowSeparateAlpha: this.allowSeparateAlpha,
         supportedFormats: this.supportedFormats
       });
 
@@ -181,7 +222,7 @@ if (!IN_WORKER) {
     }
   }
 
-  window.BasisBasics = BasisBasics;
+  window.BasisLoader = BasisLoader;
 
 } else {
   //
@@ -196,38 +237,35 @@ if (!IN_WORKER) {
     module.initializeBasis();
   });
 
-  // Based on transcoder_texture_format enum in basisu_transcoder.h
+  // Copied from enum class transcoder_texture_format in basisu_transcoder.h with minor javascript-ification
   const BASIS_FORMAT = {
     // Compressed formats
 
     // ETC1-2
-    ETC1: 0,
-    ETC2: 1,
+    cTFETC1_RGB: 0,							// Opaque only, returns RGB or alpha data if cDecodeFlagsTranscodeAlphaDataToOpaqueFormats flag is specified
+    cTFETC2_RGBA: 1,							// Opaque+alpha, ETC2_EAC_A8 block followed by a ETC1 block, alpha channel will be opaque for opaque .basis files
 
-    // BC1-5, BC7
-    BC1: 2,
-    BC3: 3,
-    BC4: 4,
-    BC5: 5,
-    BC7_M6_OPAQUE_ONLY: 6,
-    BC7_M5: 7,
+    // BC1-5, BC7 (desktop, some mobile devices)
+    cTFBC1_RGB: 2,							// Opaque only, no punchthrough alpha support yet, transcodes alpha slice if cDecodeFlagsTranscodeAlphaDataToOpaqueFormats flag is specified
+    cTFBC3_RGBA: 3, 							// Opaque+alpha, BC4 followed by a BC1 block, alpha channel will be opaque for opaque .basis files
+    cTFBC4_R: 4,								// Red only, alpha slice is transcoded to output if cDecodeFlagsTranscodeAlphaDataToOpaqueFormats flag is specified
+    cTFBC5_RG: 5,								// XY: Two BC4 blocks, X=R and Y=Alpha, .basis file should have alpha data (if not Y will be all 255's)
+    cTFBC7_RGBA: 6,							// RGB or RGBA, mode 5 for ETC1S, modes (1,2,3,5,6,7) for UASTC
 
-    // PVRTC1 4bpp
-    PVRTC1_4_RGB: 8,
-    PVRTC1_4_RGBA: 9,
+    // PVRTC1 4bpp (mobile, PowerVR devices)
+    cTFPVRTC1_4_RGB: 8,						// Opaque only, RGB or alpha if cDecodeFlagsTranscodeAlphaDataToOpaqueFormats flag is specified, nearly lowest quality of any texture format.
+    cTFPVRTC1_4_RGBA: 9,					// Opaque+alpha, most useful for simple opacity maps. If .basis file doesn't have alpha cTFPVRTC1_4_RGB will be used instead. Lowest quality of any supported texture format.
 
-    // ASTC
-    ASTC_4x4: 10,
-
-    // ATC
-    ATC_RGB: 11,
-    ATC_RGBA_INTERPOLATED_ALPHA: 12,
+    // ASTC (mobile, Intel devices, hopefully all desktop GPU's one day)
+    cTFASTC_4x4_RGBA: 10,					// Opaque+alpha, ASTC 4x4, alpha channel will be opaque for opaque .basis files. Transcoder uses RGB/RGBA/L/LA modes, void extent, and up to two ([0,47] and [0,255]) endpoint precisions.
 
     // Uncompressed (raw pixel) formats
-    RGBA32: 13,
-    RGB565: 14,
-    BGR565: 15,
-    RGBA4444: 16,
+    cTFRGBA32: 13,							// 32bpp RGBA image stored in raster (not block) order in memory, R is first byte, A is last byte.
+    cTFRGB565: 14,							// 166pp RGB image stored in raster (not block) order in memory, R at bit position 11
+    cTFBGR565: 15,							// 16bpp RGB image stored in raster (not block) order in memory, R at bit position 0
+    cTFRGBA4444: 16,							// 16bpp RGBA image stored in raster (not block) order in memory, R at bit position 12, A at bit position 0
+
+    cTFTotalTextureFormats: 22,
   };
 
   // WebGL compressed formats types, from:
@@ -263,20 +301,27 @@ if (!IN_WORKER) {
   const COMPRESSED_RGBA_PVRTC_4BPPV1_IMG = 0x8C02;
   const COMPRESSED_RGBA_PVRTC_2BPPV1_IMG = 0x8C03;
 
+  // https://www.khronos.org/registry/webgl/extensions/EXT_texture_compression_bptc/
+  const COMPRESSED_RGBA_BPTC_UNORM_EXT = 0x8E8C;
+  const COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT = 0x8E8D;
+  const COMPRESSED_RGB_BPTC_SIGNED_FLOAT_EXT = 0x8E8E;
+  const COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_EXT = 0x8E8F;
+
   const BASIS_WEBGL_FORMAT_MAP = {};
   // Compressed formats
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.BC1] = { format: COMPRESSED_RGB_S3TC_DXT1_EXT };
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.BC3] = { format: COMPRESSED_RGBA_S3TC_DXT5_EXT };
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.ETC1] = { format: COMPRESSED_RGB_ETC1_WEBGL };
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.ETC2] = { format: COMPRESSED_RGBA8_ETC2_EAC };
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.ASTC_4x4] = { format: COMPRESSED_RGBA_ASTC_4x4_KHR };
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.PVRTC1_4_RGB] = { format: COMPRESSED_RGB_PVRTC_4BPPV1_IMG };
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.PVRTC1_4_RGBA] = { format: COMPRESSED_RGBA_PVRTC_4BPPV1_IMG };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFBC1_RGB] = { format: COMPRESSED_RGB_S3TC_DXT1_EXT };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFBC3_RGBA] = { format: COMPRESSED_RGBA_S3TC_DXT5_EXT };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFBC7_RGBA] = { format: COMPRESSED_RGBA_BPTC_UNORM_EXT };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFETC1_RGB] = { format: COMPRESSED_RGB_ETC1_WEBGL };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFETC2_RGBA] = { format: COMPRESSED_RGBA8_ETC2_EAC };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFASTC_4x4_RGBA] = { format: COMPRESSED_RGBA_ASTC_4x4_KHR };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFPVRTC1_4_RGB] = { format: COMPRESSED_RGB_PVRTC_4BPPV1_IMG };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFPVRTC1_4_RGBA] = { format: COMPRESSED_RGBA_PVRTC_4BPPV1_IMG };
 
   // Uncompressed formats
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.RGBA32] = { uncompressed: true, format: WebGLRenderingContext.RGBA, type: WebGLRenderingContext.UNSIGNED_BYTE };
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.RGB565] = { uncompressed: true, format: WebGLRenderingContext.RGB, type: WebGLRenderingContext.UNSIGNED_SHORT_5_6_5 };
-  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.RGBA4444] = { uncompressed: true, format: WebGLRenderingContext.RGBA, type: WebGLRenderingContext.UNSIGNED_SHORT_4_4_4_4 };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFRGBA32] = { uncompressed: true, format: WebGLRenderingContext.RGBA, type: WebGLRenderingContext.UNSIGNED_BYTE };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFRGB565] = { uncompressed: true, format: WebGLRenderingContext.RGB, type: WebGLRenderingContext.UNSIGNED_SHORT_5_6_5 };
+  BASIS_WEBGL_FORMAT_MAP[BASIS_FORMAT.cTFRGBA4444] = { uncompressed: true, format: WebGLRenderingContext.RGBA, type: WebGLRenderingContext.UNSIGNED_SHORT_4_4_4_4 };
 
   // Notifies the main thread when a texture has failed to load for any reason.
   function fail(id, errorMsg) {
@@ -296,7 +341,7 @@ if (!IN_WORKER) {
   const IMAGE_INDEX = 0;
   const TOP_LEVEL_MIP = 0;
 
-  function transcode(id, arrayBuffer, supportedFormats) {
+  function transcode(id, arrayBuffer, supportedFormats, allowSeparateAlpha) {
     let basisData = new Uint8Array(arrayBuffer);
 
     let basisFile = new BasisFile(basisData);
@@ -317,47 +362,51 @@ if (!IN_WORKER) {
     let needsSecondaryAlpha = false;
     if (hasAlpha) {
       if (supportedFormats.etc2) {
-        basisFormat = BASIS_FORMAT.ETC2;
+        basisFormat = BASIS_FORMAT.cTFETC2_RGBA;
+      } else if (supportedFormats.bptc) {
+        basisFormat = BASIS_FORMAT.cTFBC7_RGBA;
       } else if (supportedFormats.s3tc) {
-        basisFormat = BASIS_FORMAT.BC3;
+        basisFormat = BASIS_FORMAT.cTFBC3_RGBA;
       } else if (supportedFormats.astc) {
-        basisFormat = BASIS_FORMAT.ASTC_4x4;
+        basisFormat = BASIS_FORMAT.cTFASTC_4x4_RGBA;
       } else if (supportedFormats.pvrtc) {
-        basisFormat = BASIS_FORMAT.PVRTC1_4_RGBA;
-      } /*else if (supportedFormats.etc1) {
-        basisFormat = BASIS_FORMAT.ETC1;
+        if (allowSeparateAlpha) {
+          basisFormat = BASIS_FORMAT.cTFPVRTC1_4_RGB;
+        } else {
+          basisFormat = BASIS_FORMAT.cTFPVRTC1_4_RGBA;
+        }
+      } else if (supportedFormats.etc1 && allowSeparateAlpha) {
+        basisFormat = BASIS_FORMAT.cTFETC1_RGB;
         needsSecondaryAlpha = true;
-      }*/ else {
+      } else {
         // If we don't support any appropriate compressed formats transcode to
         // raw pixels. This is something of a last resort, because the GPU
         // upload will be significantly slower and take a lot more memory, but
         // at least it prevents you from needing to store a fallback JPG/PNG and
         // the download size will still likely be smaller.
         basisFormat = BASIS_FORMAT.RGBA32;
-      } 
+      }
     } else {
       if (supportedFormats.etc1) {
         // Should be the highest quality, so use when available.
         // http://richg42.blogspot.com/2018/05/basis-universal-gpu-texture-format.html
-        basisFormat = BASIS_FORMAT.ETC1;
+        basisFormat = BASIS_FORMAT.cTFETC1_RGB;
+      } else if (supportedFormats.bptc) {
+        basisFormat = BASIS_FORMAT.cTFBC7_RGBA;
       } else if (supportedFormats.s3tc) {
-        basisFormat = BASIS_FORMAT.BC1;
+        basisFormat = BASIS_FORMAT.cTFBC1_RGB;
       } else if (supportedFormats.etc2) {
-        // This will include an alpha channel, which isn't ideal, but it's still
-        // better than using uncompressed pixels.
-        basisFormat = BASIS_FORMAT.ETC2;
+        basisFormat = BASIS_FORMAT.cTFETC2_RGBA;
       } else if (supportedFormats.astc) {
-        // This will include an alpha channel, which isn't ideal, but it's still
-        // better than using uncompressed pixels.
-        basisFormat = BASIS_FORMAT.ASTC_4x4;
+        basisFormat = BASIS_FORMAT.cTFASTC_4x4_RGBA;
       } else if (supportedFormats.pvrtc) {
-        basisFormat = BASIS_FORMAT.PVRTC1_4_RGB;
+        basisFormat = BASIS_FORMAT.cTFPVRTC1_4_RGB;
       } else {
         // See note on uncompressed transcode above.
-        basisFormat = BASIS_FORMAT.RGB565;
+        basisFormat = BASIS_FORMAT.cTFRGB565;
       }
     }
-    
+
     if (basisFormat === undefined) {
       basisFileFail(id, basisFile, 'No supported transcode formats');
       return;
@@ -429,6 +478,7 @@ if (!IN_WORKER) {
     // Each call to the worker must contain:
     let url = msg.data.url; // The URL of the basis image OR
     let buffer = msg.data.buffer; // An array buffer with the basis image data
+    let allowSeparateAlpha = msg.data.allowSeparateAlpha;
     let supportedFormats = msg.data.supportedFormats; // The formats this device supports
     let id = msg.data.id; // A unique ID for the texture
 
@@ -438,10 +488,10 @@ if (!IN_WORKER) {
         if (response.ok) {
           response.arrayBuffer().then((arrayBuffer) => {
             if (BasisFile) {
-              transcode(id, arrayBuffer, supportedFormats);
+              transcode(id, arrayBuffer, supportedFormats, allowSeparateAlpha);
             } else {
               BASIS_INITIALIZED.then(() => {
-                transcode(id, arrayBuffer, supportedFormats);
+                transcode(id, arrayBuffer, supportedFormats, allowSeparateAlpha);
               });
             }
           });
@@ -451,10 +501,10 @@ if (!IN_WORKER) {
       });
     } else if (buffer) {
       if (BasisFile) {
-        transcode(id, buffer, supportedFormats);
+        transcode(id, buffer, supportedFormats, allowSeparateAlpha);
       } else {
         BASIS_INITIALIZED.then(() => {
-          transcode(id, buffer, supportedFormats);
+          transcode(id, buffer, supportedFormats, allowSeparateAlpha);
         });
       }
     } else {
