@@ -607,6 +607,18 @@ function renderLoop(gl, stats) {
     rafCallback = onRequestedFrame;
 }
 
+const isAndroid = () => {
+  return /Android/i.test(navigator.userAgent);
+};
+
+const isiOS = () => {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+};
+
+const isMobile = () => {
+  return isAndroid() || isiOS();
+};
+
 function main() {
     var stats = new Stats();
     document.getElementById("viewport-frame").appendChild( stats.domElement );
@@ -630,7 +642,31 @@ function main() {
 
           gl.viewport(0, 0, canvas.width, canvas.height);
           mat4.perspective(projMat, 45.0, canvas.width/canvas.height, 1.0, 4096.0);
+        } else {
+          // Seems webxr.polyfill hides the canvas when showing the "Place your phone on cardboard" dialog
+          // so we need to revert its visibility when the device goes landscape
+          if (canvas.style.display !== 'block') {
+            canvas.style.display = 'block'
+          }
         }
+    }
+
+    async function requestPermissions() {
+      let orientationPermission = 'denied';
+      const isGranted = () => orientationPermission === 'granted';
+
+      if (isMobile()) {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          orientationPermission = await DeviceOrientationEvent.requestPermission();
+        }
+      }
+
+      document.getElementById('permsBtn').style.display = isGranted() ? 'none' : 'block';
+      if (isGranted()) {
+        return true;
+      } else {
+        console.log('Could not get permissions');
+      }
     }
 
     if(!gl) {
@@ -641,6 +677,14 @@ function main() {
         initEvents();
         initGL(gl, canvas);
         renderLoop(gl, stats);
+    }
+
+    // Check for permissions on init to show/hide the button
+    // It wont trigger dialog to show due to iOS restriction to an manual user interaction
+    if (isiOS()) {
+      requestPermissions();
+    } else {
+      document.getElementById('permsBtn').style.display = 'none';
     }
 
     onResize();
@@ -720,8 +764,10 @@ function main() {
     }
     var vrBtn = document.getElementById("vrBtn");
     var mobileVrBtn = document.getElementById("mobileVrBtn");
+    var permsBtn = document.getElementById('permsBtn');
     vrBtn.addEventListener("click", presentXR, false);
     mobileVrBtn.addEventListener("click", presentXR, false);
+    permsBtn.addEventListener('click', requestPermissions, false);
 
 }
 
@@ -735,8 +781,8 @@ window.addEventListener("load", function() {
   }
 
   if (navigator.xr) {
-    navigator.xr.supportsSession('immersive-vr').then(OnVRSupported);
+    navigator.xr.isSessionSupported('immersive-vr').then(OnVRSupported);
   }
 
   main();
-}); 
+});
